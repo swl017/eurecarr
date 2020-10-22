@@ -1,0 +1,25 @@
+<launch>
+  <arg name="namespace" value="alpha" />
+
+  <node name="obstructor" pkg="eurecarr_perception" type="obstructor" output="screen" ns="$(arg namespace)">
+    <param name="track_in" value="waypoints_new_in" type="string" />
+    <param name="track_mid" value="waypoints_new_mid" type="string" />
+    <param name="track_out" value="waypoints_new_out" type="string" />
+
+    <param name="targetFrame" value="odom" type="string"/>
+    <param name="/import_file" value="/launch/waypoints.txt" type="string" />
+
+    <param name="reorder_offset" value="2" />
+    <param name="default_track" value="0" />
+  <!--oppo-->
+    <remap from="obstructor/oppo_pose" to="/beta/pose_estimate" />
+  <!--ego-->
+    <remap from="obstructor/ego_pose" to="pose_estimate" /> 
+    <!-- <remap from="/opponents/predicted_trajectory" to="/mppi_controller/opponents/predicted_trajectory" /> -->
+  </node>
+
+  <node name="stanley_controller" pkg="autorally_control" type="stanley_controller_ros.py" output="screen" ns="$(arg namespace)" />
+  <include file="$(find autorally_control)/launch/constantSpeedController.launch" >
+    <arg name="namespace" value="$(arg namespace)" />
+  </include>
+</launch>

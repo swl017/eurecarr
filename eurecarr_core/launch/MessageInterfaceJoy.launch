@@ -1,0 +1,14 @@
+<!-- Launches Arduino ROS serial and MessageInterface node and autorally joystickcontroller -->
+
+<launch>
+  <include file="$(find autorally_core)/launch/hardware.machine" />
+  <include file="$(find autorally_control)/launch/joystickController.launch" />
+  <node name="MessageInterface" pkg="eurecarr_core" type="MessageInterface" output="screen" />
+  <node name="Arduino_serial_node" pkg="rosserial_arduino" type="serial_node.py" output="screen" >
+
+    <param name="port" value="/dev/USB_Arduino" />
+    <param name="baud" value="57600" />
+
+  </node>
+
+</launch>

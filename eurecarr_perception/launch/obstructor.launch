@@ -1,0 +1,24 @@
+<launch>
+  <arg name="namespace" default="/" />
+  <arg name="oppo_pose_topic_name" default="pose_estimate_oppo" />
+  <arg name="ego_pose_topic_name" default="ground_truth/state" />
+
+  <node name="obstructor" pkg="eurecarr_perception" type="obstructor" output="screen" ns="$(arg namespace)">
+    <!-- <param name="track_in" value="waypoints_new_in" type="string" /> -->
+    <param name="track_in" value="waypoints_new_out" type="string" />
+    <!-- <param name="track_mid" value="waypoints_new_mid" type="string" /> -->
+    <param name="track_mid" value="waypoints_new_out" type="string" />
+    <!-- <param name="track_out" value="waypoints_new_out" type="string" /> -->
+    <param name="track_out" value="waypoints_new_out" type="string" />
+
+    <param name="targetFrame" value="odom" type="string"/>
+    <param name="/import_file" value="/launch/waypoints.txt" type="string" />
+
+    <param name="reorder_offset" value="2" />
+  <!--oppo-->
+    <remap from="obstructor/oppo_pose" to="/$(arg oppo_pose_topic_name)" />
+  <!--ego-->
+    <remap from="obstructor/ego_pose" to="/$(arg ego_pose_topic_name)" /> 
+    <!-- <remap from="/opponents/predicted_trajectory" to="/mppi_controller/opponents/predicted_trajectory" /> -->
+  </node>
+</launch>

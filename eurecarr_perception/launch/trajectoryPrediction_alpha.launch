@@ -1,0 +1,22 @@
+<launch>
+
+<arg name="namespace" value="alpha" />
+<arg name="opponame" value="beta" />
+<arg name="pose_topic_name" default="pose_estimate" />
+
+  <node name="trajectoryPrediction" pkg="eurecarr_perception" type="trajectoryPrediction" output="screen">
+    <param name="numTimesteps" value="100" />
+    <param name="hz" value="50" />
+    <param name="dt" value="0.02" />
+    <param name="opponentSpeed" value="3.0" />
+    <param name="targetFrame" value="odom" type="string"/>
+    <param name="waypoint_file_path" value="$(find autorally_control)/launch/waypoints_fulltrack4" type="string" />
+    <param name="speed_error" value="0" />
+    <param name="estimated_speed" value="3.0" />
+  <!--oppo-->
+    <remap from="trajectoryPrediction/oppo_pose" to="$(arg opponame)/$(arg pose_topic_name)" />
+  <!--ego-->
+    <remap from="trajectoryPrediction/ego_pose" to="$(arg namespace)/$(arg pose_topic_name)" /> 
+    <remap from="/opponents/predicted_trajectory" to="$(arg namespace)/mppi_controller/opponents/predicted_trajectory" />
+  </node>
+</launch>

@@ -1,0 +1,10 @@
+<!-- Launches Arduino ROS serial and MessageInterface node and autorally joystickcontroller -->
+
+<launch>
+
+    <include file="$(find eurecarr_core)/launch/MessageInterface.launch" />
+    <include file="$(find eurecarr_core)/launch/GPS_IMU.launch" />
+    <include file="$(find eurecarr_core)/launch/StateEstimator.launch" />
+  
+
+</launch>

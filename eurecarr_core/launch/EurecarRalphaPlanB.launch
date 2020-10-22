@@ -1,0 +1,22 @@
+<!-- Launches Arduino ROS serial and MessageInterface node and autorally joystickcontroller -->
+
+<launch>
+
+  <arg name="pose_topic" value="pose_estimate" />
+<!--  <include file="$(find eurecarr_perception)/launch/trajectoryPrediction_alpha.launch">
+    <arg name="pose_topic_name" value="$(arg pose_topic)" />
+  </include>
+  <include file="$(find autorally_control)/launch/path_integral_bf_alpha.launch" >
+    <arg name="pose_topic_name" value="$(arg pose_topic)" />
+  </include>
+-->
+
+  <group ns="alpha">
+
+    <include file="$(find eurecarr_core)/launch/MessageInterface.launch" />
+    <include file="$(find eurecarr_core)/launch/GPS_IMU.launch" />
+    <include file="$(find autorally_core)/launch/stateEstimator.launch" />
+
+  </group>
+
+</launch>

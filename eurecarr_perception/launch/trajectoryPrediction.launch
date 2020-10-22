@@ -1,0 +1,16 @@
+<launch>
+
+  <node name="trajectoryPrediction" pkg="eurecarr_perception" type="trajectoryPrediction" output="screen">
+    <param name="numTimesteps" value="200" />
+    <param name="hz" value="50" />
+    <param name="dt" value="0.02" />
+    <param name="opponetSpeed" value="2.0" />
+    <param name="targetFrame" value="odom" type="string"/>
+    <param name="import_file" value="/launch/waypoints" type="string" />
+  <!--oppo-->
+    <remap from="trajectoryPrediction/oppo_pose" to="/beta/pose_estimate" />
+  <!--ego-->
+    <remap from="trajectoryPrediction/ego_pose" to="/alpha/pose_estimate" /> 
+    <!-- <remap from="/opponents/predicted_trajectory" to="/mppi_controller/opponents/predicted_trajectory" /> -->
+  </node>
+</launch>

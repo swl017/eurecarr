@@ -1,0 +1,35 @@
+<launch>
+  <arg name="namespace" value="beta" />
+  <arg name="oppo_pose_topic_name" default="pose_estimate_oppo" />
+  <arg name="ego_pose_topic_name" default="pose_estimate" />
+  <arg name="pose_topic_name" default="pose_estimate" />
+  <arg name="waypointfilename" default="waypoints_fulltrack" />
+
+  <node name="obstructor" pkg="eurecarr_perception" type="obstructor" output="screen" ns="$(arg namespace)">
+    <param name="isObstruct" value="true" type="bool"/>
+
+    <!-- <param name="track_in" value="waypoints_new_in" type="string" /> -->
+    <param name="track_in" value="$(arg waypointfilename)" type="string" />
+    <!-- <param name="track_mid" value="waypoints_new_mid" type="string" /> -->
+    <param name="track_mid" value="$(arg waypointfilename)" type="string" />
+    <!-- <param name="track_out" value="waypoints_new_out" type="string" /> -->
+    <param name="track_out" value="$(arg waypointfilename)" type="string" />
+
+    <param name="targetFrame" value="odom" type="string"/>
+    <param name="/import_file" value="/launch/waypoints.txt" type="string" />
+
+    <param name="reorder_offset" value="0" />
+    <param name="default_track" value="1" />
+    <param name="obstruct_range" value="24" />
+  <!--oppo-->
+    <remap from="obstructor/oppo_pose" to="/alpha/$(arg pose_topic_name)" />
+  <!--ego-->
+    <remap from="obstructor/ego_pose" to="/beta/$(arg pose_topic_name)" /> 
+    <!-- <remap from="/opponents/predicted_trajectory" to="/mppi_controller/opponents/predicted_trajectory" /> -->
+  </node>
+
+  <node name="stanley_controller" pkg="autorally_control" type="stanley_controller_ros.py" output="screen" ns="$(arg namespace)" />
+  <include file="$(find autorally_control)/launch/constantSpeedController.launch" >
+    <arg name="namespace" value="$(arg namespace)" />
+  </include>
+</launch>
