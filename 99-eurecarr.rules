@@ -1,0 +1,20 @@
+# Using command:
+#
+# $ udevadm info -a -p $(udevadm info -q path -n /dev/ttyACM0)
+#
+# Enter attributes of a device in /etc/udev/rules.d/99-*.rules
+#
+# Use the following to make the rules to take effect:
+#
+# $ sudo udevadm control --reload-rules && sudo service udev restart && sudo udevadm trigger
+
+
+# Arduino Due in the chassis KERNELS=="1-2.*",SUBSYSTEM=="usb",
+SUBSYSTEM=="tty", ATTRS{manufacturer}=="Arduino (www.arduino.cc)", ATTRS{idProduct}=="003d", ATTRS{product}=="Arduino Due Prog. Port", ATTRS{serial}=="85734323730351217190", MODE="0666", SYMLINK+="USB_Arduino"
+
+# GPS - Ublox EVK-M8F
+SUBSYSTEM=="tty", DRIVERS=="usb", ATTRS{idVendor}=="1546", ATTRS{idProduct}=="01a8", ATTRS{product}=="u-blox GNSS receiver", MODE="0666", SYMLINK+="USB_GPS", RUN+="/dev/echo ‘GPS connected’"
+
+# Lord Microstrain IMU
+SUBSYSTEM=="tty", DRIVERS=="usb", ATTRS{idProduct}=="5740", ATTRS{idVendor}=="0483", ATTRS{manufacturer}=="Lord Microstrain", ATTRS{product}=="Lord Inertial Sensor", ATTRS{serial}=="0000__6253.95798", MODE="0666", SYMLINK+="USB_IMU"
+
