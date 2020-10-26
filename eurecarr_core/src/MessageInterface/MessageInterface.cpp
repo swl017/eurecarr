@@ -32,6 +32,8 @@ MessageInterface::MessageInterface()
 
     nhp.param("steering_gain", steering_gain_, 1.0);
     nhp.param("throttle_gain", throttle_gain_, 0.92);
+    nhp.param("throttle_max", throttle_max_, 0.6);
+    nhp.param("throttle_min", throttle_min_, -0.5);
     nhp.param("invert_steering", invert_steering_, false);
     nhp.param("invert_throttle", invert_throttle_, false);
     if(steering_gain_ < 0 || throttle_gain_ < 0){
@@ -43,6 +45,10 @@ MessageInterface::MessageInterface()
     steering_ = 0;
     throttle_ = 0;
     runstop_bool_.data = false;
+    control_count_ = 0;
+    reset_count_ = 0;
+    throttle_max_ = std::max(throttle_max_, 0.0);
+    throttle_min_ = std::min(throttle_min_, 0.0);
 
     // subscribe from arduino
     wheel_speed_lf_sub_ = nh.subscribe("wheel_speed_lf", 1, &MessageInterface::wheelSpeedlfCallback, this);      // subscriber for wheel speeds <- Arduino Serial node
@@ -140,9 +146,12 @@ void MessageInterface::publishControl()
     else{
 	    throttle_ = throttle_*throttle_gain_;
     }
-    throttle_ = std::min(std::max(throttle_,(double)-1.0),(double)1.0);
+    throttle_ = std::min(std::max(throttle_, throttle_min_), throttle_max_);
     //ROS_INFO("steering = %f * %f", steering_, steering_gain_);
     //ROS_INFO("throttle = %f * %f", throttle_, throttle_gain_);
+    if(runstop_bool_.data == false){
+	    throttle_ = 0;
+    }
     // form
     pwm_steer_cmd_.data = SERVO_ALPHA * steering_ + SERVO_BETA;
     pwm_throttle_cmd_.data = SERVO_ALPHA * throttle_ + SERVO_BETA;
@@ -178,8 +187,13 @@ void MessageInterface::publishControl()
     control_sender_csc_ = "";
     chassis_state_.throttleCommander = "";
     chassis_state_.steeringCommander = "";
-    //steering_ = 0;
-    //throttle_ = 0;
+
+    // Clear inputs to 0 if not received for long.
+    reset_count_ = std::max(100, reset_count_+1);
+    if(reset_count_ > 20){
+        steering_ = 0;
+        throttle_ = 0;
+    }
 }
 
 void MessageInterface::chassisCommandMPPICallback(autorally_msgs::chassisCommand chassis_command_msg)
@@ -199,7 +213,8 @@ void MessageInterface::chassisCommandMPPICallback(autorally_msgs::chassisCommand
 	steering_ = steering_command_mppi_;
         throttle_ = throttle_command_mppi_;
 //    }
-
+    control_count_ = 0;
+    reset_count_ = 0;
 }
 
 void MessageInterface::chassisCommandWptCallback(autorally_msgs::chassisCommand chassis_command_msg)
@@ -219,7 +234,8 @@ void MessageInterface::chassisCommandWptCallback(autorally_msgs::chassisCommand 
 	}
         //throttle_ = throttle_command_wpt_;
 //    }
-
+    control_count_ = 0;
+    reset_count_ = 0;
 }
 
 void MessageInterface::chassisCommandCSCCallback(std_msgs::Float64 chassis_command_msg)
@@ -232,7 +248,8 @@ void MessageInterface::chassisCommandCSCCallback(std_msgs::Float64 chassis_comma
     }
     //steering_ = steering_command_wpt_;
     throttle_ = throttle_command_csc_;
-
+    control_count_ = 0;
+    reset_count_ = 0;
 }
 
 void MessageInterface::chassisCommandJoyCallback(autorally_msgs::chassisCommand chassis_command_msg)
@@ -249,7 +266,8 @@ void MessageInterface::chassisCommandJoyCallback(autorally_msgs::chassisCommand 
     //     steering_ = chassis_command_msg.steering;
     //     throttle_ = chassis_command_msg.throttle;
     // }
-	if(control_sender_ != "mppi_controller" && control_sender_ != "waypoint_follower")
+
+    if(control_count_ > 10)
     {
         control_sender_ = "joystick";
         steering_ = chassis_command_msg.steering;
@@ -261,6 +279,8 @@ void MessageInterface::chassisCommandJoyCallback(autorally_msgs::chassisCommand 
             throttle_ = -throttle_;
         }
     }
+    control_count_ = std::min(50, control_count_ + 1);
+    reset_count_ = 0;
 }
 }
 

@@ -109,10 +109,14 @@ public:
 
     std::__cxx11::string control_sender_;
     std::__cxx11::string control_sender_csc_;
+    int control_count_; ///< Threshold for using joystick input
+    int reset_count_; ///< Threshold for clearing input to 0
     double steering_;
     double throttle_;
     double steering_gain_; 
     double throttle_gain_;
+    double throttle_max_;
+    double throttle_min_;
     bool invert_steering_;
     bool invert_throttle_;
     double steering_command_mppi_;  ///< Steering angle of vehicle

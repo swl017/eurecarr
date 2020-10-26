@@ -8,6 +8,8 @@
     <param name="throttle_gain" value="0.6"/>
     <param name="invert_steering" value="true"/>
     <param name="invert_throttle" value="false"/>
+    <param name="throttle_max" value="0.6"/>
+    <param name="throttle_min" value="-0.5"/>
   </node> 
   <node name="arduino_serial_node" pkg="rosserial_arduino" type="serial_node.py" output="screen" >
 
