@@ -6,6 +6,8 @@
  * @brief Odometry node
  *
  * @details An interface node that transforms messages from arduino to appropriate ROS standard/custom messages
+ * 
+ * @modification 2020-10-26 Seperated runstop subscription and control publication.
  **/
 
 
@@ -36,8 +38,11 @@ MessageInterface::MessageInterface()
 	    ROS_WARN("Do not set steering or throttle gain below 0. Use 'invert_*_' instead.");
     }
     ROS_INFO("steering_gain set to %f", steering_gain_);
+
+    // initialize variables
     steering_ = 0;
     throttle_ = 0;
+    runstop_bool_.data = false;
 
     // subscribe from arduino
     wheel_speed_lf_sub_ = nh.subscribe("wheel_speed_lf", 1, &MessageInterface::wheelSpeedlfCallback, this);      // subscriber for wheel speeds <- Arduino Serial node
@@ -109,22 +114,24 @@ void MessageInterface::runstopCallback(autorally_msgs::runstop runstop_msg)
 {
     double runstop = runstop_msg.motionEnabled;
     runstop_bool_.data = runstop;
+}
 
+void MessageInterface::publishControl()
+{
     runstop_arduino_pub_.publish(runstop_bool_);
-
+    wheel_speeds_.lfSpeed = speed_lf_;
+    wheel_speeds_.rfSpeed = speed_rf_;
     wheel_speeds_.lbSpeed = speed_lr_;
-    wheel_speeds_.lbSpeed = speed_lr_;
-    wheel_speeds_.lbSpeed = speed_lr_;
-    wheel_speeds_.lbSpeed = speed_lr_;
+    wheel_speeds_.rbSpeed = speed_rr_;
     wheel_speeds_pub_.publish(wheel_speeds_);
 
     // filter
-    if(steering_>1 or steering_<-1 or !runstop or std::isnan(steering_)){
-        steering_ = 0;
-    }
-    if(throttle_>1 or throttle_<-1 or !runstop or std::isnan(throttle_)){
-        throttle_ = 0;
-    }
+    // if(steering_>1 or steering_<-1 or !runstop or std::isnan(steering_)){
+    //     steering_ = 0;
+    // }
+    // if(throttle_>1 or throttle_<-1 or !runstop or std::isnan(throttle_)){
+    //     throttle_ = 0;
+    // }
     // adjust with gain
     steering_ = std::min(std::max(steering_ * steering_gain_,(double)-1.0),(double)1.0);
     if(throttle_ < 0){
@@ -174,7 +181,6 @@ void MessageInterface::runstopCallback(autorally_msgs::runstop runstop_msg)
     //steering_ = 0;
     //throttle_ = 0;
 }
-
 
 void MessageInterface::chassisCommandMPPICallback(autorally_msgs::chassisCommand chassis_command_msg)
 {
@@ -243,14 +249,17 @@ void MessageInterface::chassisCommandJoyCallback(autorally_msgs::chassisCommand 
     //     steering_ = chassis_command_msg.steering;
     //     throttle_ = chassis_command_msg.throttle;
     // }
-	    
-    steering_ = chassis_command_msg.steering;
-    if(invert_steering_ == true){
-	    steering_ = -steering_;
-    }
-    throttle_ = chassis_command_msg.throttle;
-    if(invert_throttle_ == true){
-	    throttle_ = -throttle_;
+	if(control_sender_ != "mppi_controller" && control_sender_ != "waypoint_follower")
+    {
+        control_sender_ = "joystick";
+        steering_ = chassis_command_msg.steering;
+        throttle_ = chassis_command_msg.throttle;
+        if(invert_steering_ == true){
+            steering_ = -steering_;
+        }
+        if(invert_throttle_ == true){
+            throttle_ = -throttle_;
+        }
     }
 }
 }
@@ -259,6 +268,12 @@ int main(int argc, char** argv)
 {
   ros::init(argc, argv, "MessageInterface");
   eurecarr_core::MessageInterface MessageInterface;
-  ros::spin();
+  ros::Rate r(50);
+  while(ros::ok())
+  {
+    MessageInterface.publishControl();
+    ros::spinOnce();
+    r.sleep();
+  }
   return 0;
 }

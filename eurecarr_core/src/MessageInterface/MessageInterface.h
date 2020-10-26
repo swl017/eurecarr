@@ -41,6 +41,22 @@ public:
     MessageInterface();
     ~MessageInterface();
 
+    void wheelSpeedlfCallback(const std_msgs::Float64Ptr& ws_lf);
+    void wheelSpeedrfCallback(const std_msgs::Float64Ptr& ws_rf);
+    void wheelSpeedlrCallback(const std_msgs::Float64Ptr& ws_lr);
+    void wheelSpeedrrCallback(const std_msgs::Float64Ptr& ws_rr);
+    void steerDebugCallback(const std_msgs::Float64 steer);
+    void throttleDebugCallback(const std_msgs::Float64 throttle);
+
+    void automanCallback(std_msgs::Bool automan_autorally_sub_);
+    void runstopCallback(autorally_msgs::runstop runstop_autorally_sub_);
+    void chassisCommandJoyCallback(autorally_msgs::chassisCommand chassis_command_joy_);
+    void chassisCommandMPPICallback(autorally_msgs::chassisCommand chassis_command_mppi_);
+    void chassisCommandWptCallback(autorally_msgs::chassisCommand chassis_command_wpt_);
+    void chassisCommandCSCCallback(std_msgs::Float64 chassis_command_wpt_);
+
+    void publishControl();
+
     private:
     const double PI = 3.14159265; ///< Value for pi
     const double MAX_SERVO_VAL = 0.65; ///< Maximum servo value vehicle will steer
@@ -114,18 +130,5 @@ public:
     double avg_speed_;  ///< Average speed of the front two wheels in m/s
 
 
-    void wheelSpeedlfCallback(const std_msgs::Float64Ptr& ws_lf);
-    void wheelSpeedrfCallback(const std_msgs::Float64Ptr& ws_rf);
-    void wheelSpeedlrCallback(const std_msgs::Float64Ptr& ws_lr);
-    void wheelSpeedrrCallback(const std_msgs::Float64Ptr& ws_rr);
-    void steerDebugCallback(const std_msgs::Float64 steer);
-    void throttleDebugCallback(const std_msgs::Float64 throttle);
-
-    void automanCallback(std_msgs::Bool automan_autorally_sub_);
-    void runstopCallback(autorally_msgs::runstop runstop_autorally_sub_);
-    void chassisCommandJoyCallback(autorally_msgs::chassisCommand chassis_command_joy_);
-    void chassisCommandMPPICallback(autorally_msgs::chassisCommand chassis_command_mppi_);
-    void chassisCommandWptCallback(autorally_msgs::chassisCommand chassis_command_wpt_);
-    void chassisCommandCSCCallback(std_msgs::Float64 chassis_command_wpt_);
 };
 }
