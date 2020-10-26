@@ -189,7 +189,7 @@ void MessageInterface::publishControl()
     chassis_state_.steeringCommander = "";
 
     // Clear inputs to 0 if not received for long.
-    reset_count_ = std::max(100, reset_count_+1);
+    reset_count_ = std::min(100, reset_count_+1);
     if(reset_count_ > 20){
         steering_ = 0;
         throttle_ = 0;
