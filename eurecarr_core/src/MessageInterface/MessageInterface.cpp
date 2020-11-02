@@ -80,6 +80,12 @@ MessageInterface::MessageInterface()
     // publisher to autorally
     chassis_state_pub_ = nh.advertise<autorally_msgs::chassisState>("chassisState", 3); // pub at 
 
+    // dynamic reconfigure
+    dynamic_reconfigure::Server<MessageInterfaceParamsConfig>::CallbackType cb;
+
+    cb = boost::bind(&MessageInterface::ConfigCallback, this, _1, _2);
+
+    dynServer_.setCallback(cb);
 
 }
 
@@ -137,13 +143,12 @@ void MessageInterface::publishControl()
     wheel_speeds_.rbSpeed = speed_rr_;
     wheel_speeds_pub_.publish(wheel_speeds_);
 
-    // filter
-    // if(steering_>1 or steering_<-1 or !runstop or std::isnan(steering_)){
-    //     steering_ = 0;
-    // }
-    // if(throttle_>1 or throttle_<-1 or !runstop or std::isnan(throttle_)){
-    //     throttle_ = 0;
-    // }
+    // check if reconfigured
+    if(hasNewDynamicParams_ == true){
+        steering_lpf_.setParams(1.0/rate_, steering_lpf_hz_, steering_filtered_); 
+        throttle_lpf_.setParams(1.0/rate_, throttle_lpf_hz_, throttle_filtered_);
+        hasNewDynamicParams_ = false;
+    }
     // adjust with gain
     steering_ = std::min(std::max(steering_, (double)-1.0), (double)1.0);
     throttle_ = std::min(std::max(throttle_, throttle_min_), throttle_max_);
@@ -302,6 +307,14 @@ void MessageInterface::chassisCommandJoyCallback(autorally_msgs::chassisCommand 
     control_count_ = std::min(50, control_count_ + 1);
     reset_count_ = 0;
 }
+
+  void MessageInterface::ConfigCallback(const MessageInterfaceParamsConfig &config, uint32_t level)
+  {
+    steering_lpf_hz_ = config.steering_lpf_hz;
+    throttle_lpf_hz_ = config.throttle_lpf_hz;
+    hasNewDynamicParams_ = true;
+    std::cout << "Got a config!!" << " steering_lpf_hz = " << steering_lpf_hz_ << ", throttle_lpf_hz = " << throttle_lpf_hz_ << std::endl;
+  }
 }
 
 int main(int argc, char** argv)

@@ -26,6 +26,9 @@
 
 #include <low_pass_filter.h>
 
+#include <dynamic_reconfigure/server.h>
+#include <eurecarr_core/MessageInterfaceParamsConfig.h>
+
 namespace eurecarr_core
 {
     /**
@@ -59,6 +62,8 @@ public:
 
     void publishControl();
 
+    void ConfigCallback(const MessageInterfaceParamsConfig &config, uint32_t level);
+
     private:
     const double PI = 3.14159265; ///< Value for pi
     const double MAX_SERVO_VAL = 0.65; ///< Maximum servo value vehicle will steer
@@ -85,6 +90,10 @@ public:
     ros::Publisher automan_arduino_pub_;
     ros::Publisher pwm_steer_cmd_pub_;
     ros::Publisher pwm_throttle_cmd_pub_;
+    ////////////////////////////////////////////
+    eurecarr_core::MessageInterfaceParamsConfig messageInterfaceParams_;
+    dynamic_reconfigure::Server<MessageInterfaceParamsConfig> dynServer_;
+    bool hasNewDynamicParams_;
     ////////////////////////////////////////////
 
     std_msgs::Bool runstop_bool_;

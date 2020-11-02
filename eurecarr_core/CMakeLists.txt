@@ -11,12 +11,15 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
   geometry_msgs
   nav_msgs
+  dynamic_reconfigure
 )
 
 find_package(cmake_modules REQUIRED)
 find_package(catkin REQUIRED)
 
-
+generate_dynamic_reconfigure_options(
+   config/MessageInterfaceParams.cfg
+)
 
 
 ################################################
