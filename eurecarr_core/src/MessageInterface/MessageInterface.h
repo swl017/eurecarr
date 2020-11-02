@@ -24,6 +24,8 @@
 #include <std_msgs/Bool.h>
 #include <std_msgs/String.h>
 
+#include <low_pass_filter.h>
+
 namespace eurecarr_core
 {
     /**
@@ -101,6 +103,7 @@ public:
     bool using_sim_;        ///< True if simulator is being used
     double time_delay_;     ///< Delay for the angular velocity to account for platform response time
     double max_servo_val_;  ///< Maximum servo value that vehicle can steer to
+    int rate_;   /// Loop rate in Hz
 
     double length_;  ///< Length of vehicle wheel base
     double width_;   ///< Length of vehicle axle
@@ -111,6 +114,7 @@ public:
     std::__cxx11::string control_sender_csc_;
     int control_count_; ///< Threshold for using joystick input
     int reset_count_; ///< Threshold for clearing input to 0
+    double pwm_steering_neutral_;
     double steering_;
     double throttle_;
     double steering_gain_; 
@@ -119,6 +123,15 @@ public:
     double throttle_min_;
     bool invert_steering_;
     bool invert_throttle_;
+
+    // low pass filter parameters & variables
+    low_pass_filter steering_lpf_;
+    low_pass_filter throttle_lpf_;
+    double steering_lpf_hz_;
+    double throttle_lpf_hz_;
+    double steering_filtered_;
+    double throttle_filtered_;
+
     double steering_command_mppi_;  ///< Steering angle of vehicle
     double throttle_command_mppi_;  ///< reserved commands for multiple controller commands
     double steering_command_wpt_;  ///< Steering angle of vehicle

@@ -4,16 +4,20 @@
 
   <!-- <include file="$(find autorally_core)/launch/hardware.machine" /> -->
   <node name="MessageInterface" pkg="eurecarr_core" type="MessageInterface" output="screen" >
+    <param name="pwm_steering_neutral_" value="1575"/>
     <param name="steering_gain" value="1.0"/>
     <param name="throttle_gain" value="0.6"/>
     <param name="invert_steering" value="true"/>
     <param name="invert_throttle" value="false"/>
     <param name="throttle_max" value="0.6"/>
     <param name="throttle_min" value="-0.5"/>
+    <param name="steering_lpf_hz" value="10.0"/>
+    <param name="throttle_lpf_hz" value="1"/>
   </node> 
   <node name="arduino_serial_node" pkg="rosserial_arduino" type="serial_node.py" output="screen" >
 
     <param name="port" value="/dev/USB_Arduino" />
+<!--    <param name="baud" value="115200" />-->
     <param name="baud" value="57600" />
 
   </node>

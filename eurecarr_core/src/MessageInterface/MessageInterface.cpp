@@ -30,18 +30,22 @@ MessageInterface::MessageInterface()
     'RC': 7
      */
 
+    nhp.param("pwm_steering_neutral_", pwm_steering_neutral_, 1500.0);
     nhp.param("steering_gain", steering_gain_, 1.0);
     nhp.param("throttle_gain", throttle_gain_, 0.92);
     nhp.param("throttle_max", throttle_max_, 0.6);
     nhp.param("throttle_min", throttle_min_, -0.5);
     nhp.param("invert_steering", invert_steering_, false);
     nhp.param("invert_throttle", invert_throttle_, false);
+    nhp.param("steering_lpf_hz", steering_lpf_hz_, 100.0);
+    nhp.param("throttle_lpf_hz", throttle_lpf_hz_, 1.0);
     if(steering_gain_ < 0 || throttle_gain_ < 0){
 	    ROS_WARN("Do not set steering or throttle gain below 0. Use 'invert_*_' instead.");
     }
     ROS_INFO("steering_gain set to %f", steering_gain_);
 
     // initialize variables
+    rate_ = 50; // loop rate in Hz
     steering_ = 0;
     throttle_ = 0;
     runstop_bool_.data = false;
@@ -49,6 +53,8 @@ MessageInterface::MessageInterface()
     reset_count_ = 0;
     throttle_max_ = std::max(throttle_max_, 0.0);
     throttle_min_ = std::min(throttle_min_, 0.0);
+    steering_lpf_.setParams(1.0/rate_, steering_lpf_hz_, (double) 0); 
+    throttle_lpf_.setParams(1.0/rate_, throttle_lpf_hz_, (double) 0);
 
     // subscribe from arduino
     wheel_speed_lf_sub_ = nh.subscribe("wheel_speed_lf", 1, &MessageInterface::wheelSpeedlfCallback, this);      // subscriber for wheel speeds <- Arduino Serial node
@@ -139,22 +145,21 @@ void MessageInterface::publishControl()
     //     throttle_ = 0;
     // }
     // adjust with gain
-    steering_ = std::min(std::max(steering_ * steering_gain_,(double)-1.0),(double)1.0);
-    if(throttle_ < 0){
-	    throttle_ = throttle_*0.5;
-    }
-    else{
-	    throttle_ = throttle_*throttle_gain_;
-    }
+    steering_ = std::min(std::max(steering_, (double)-1.0), (double)1.0);
     throttle_ = std::min(std::max(throttle_, throttle_min_), throttle_max_);
+    // Low pass filter
+    steering_lpf_.getFilteredValue(steering_, steering_filtered_);
+    throttle_lpf_.getFilteredValue(throttle_, throttle_filtered_);
     //ROS_INFO("steering = %f * %f", steering_, steering_gain_);
     //ROS_INFO("throttle = %f * %f", throttle_, throttle_gain_);
     if(runstop_bool_.data == false){
 	    throttle_ = 0;
+            throttle_filtered_ = 0;
     }
     // form
-    pwm_steer_cmd_.data = SERVO_ALPHA * steering_ + SERVO_BETA;
-    pwm_throttle_cmd_.data = SERVO_ALPHA * throttle_ + SERVO_BETA;
+    //pwm_steer_cmd_.data = SERVO_ALPHA * steering_ + SERVO_BETA;
+    pwm_steer_cmd_.data = SERVO_ALPHA * steering_filtered_ + pwm_steering_neutral_;
+    pwm_throttle_cmd_.data = SERVO_ALPHA * throttle_filtered_ + SERVO_BETA;
     // publish to Arduino
     pwm_steer_cmd_pub_.publish(pwm_steer_cmd_);
     pwm_throttle_cmd_pub_.publish(pwm_throttle_cmd_);
@@ -178,21 +183,26 @@ void MessageInterface::publishControl()
     if(control_sender_csc_ == "constantSpeedController"){
         chassis_state_.throttleCommander = "constantSpeedController";
     }
-
-    chassis_state_.steering = steering_;
-    chassis_state_.throttle = throttle_;
+    chassis_state_.header.stamp = ros::Time::now();
+    chassis_state_.steering = steering_filtered_;
+    chassis_state_.throttle = throttle_filtered_;
+    //chassis_state_.steering = steering_;
+    //chassis_state_.throttle = throttle_;
     chassis_state_pub_.publish(chassis_state_);
 
-    control_sender_ = "";
-    control_sender_csc_ = "";
-    chassis_state_.throttleCommander = "";
-    chassis_state_.steeringCommander = "";
+
 
     // Clear inputs to 0 if not received for long.
     reset_count_ = std::min(100, reset_count_+1);
     if(reset_count_ > 20){
         steering_ = 0;
         throttle_ = 0;
+        steering_filtered_ = 0;
+        throttle_filtered_ = 0;
+        control_sender_ = "";
+        control_sender_csc_ = "";
+        chassis_state_.throttleCommander = "";
+        chassis_state_.steeringCommander = "";
     }
 }
 
@@ -213,6 +223,9 @@ void MessageInterface::chassisCommandMPPICallback(autorally_msgs::chassisCommand
 	steering_ = steering_command_mppi_;
         throttle_ = throttle_command_mppi_;
 //    }
+    steering_ = steering_gain_ * steering_;
+    throttle_ = throttle_gain_ * throttle_;
+
     control_count_ = 0;
     reset_count_ = 0;
 }
@@ -234,6 +247,9 @@ void MessageInterface::chassisCommandWptCallback(autorally_msgs::chassisCommand 
 	}
         //throttle_ = throttle_command_wpt_;
 //    }
+    steering_ = steering_gain_ * steering_;
+    throttle_ = throttle_gain_ * throttle_;
+
     control_count_ = 0;
     reset_count_ = 0;
 }
@@ -248,6 +264,8 @@ void MessageInterface::chassisCommandCSCCallback(std_msgs::Float64 chassis_comma
     }
     //steering_ = steering_command_wpt_;
     throttle_ = throttle_command_csc_;
+    steering_ = steering_gain_ * steering_;
+    throttle_ = throttle_gain_ * throttle_;
     control_count_ = 0;
     reset_count_ = 0;
 }
@@ -278,6 +296,8 @@ void MessageInterface::chassisCommandJoyCallback(autorally_msgs::chassisCommand 
         if(invert_throttle_ == true){
             throttle_ = -throttle_;
         }
+	steering_ = steering_gain_ * steering_;
+        throttle_ = throttle_gain_ * throttle_;
     }
     control_count_ = std::min(50, control_count_ + 1);
     reset_count_ = 0;
