@@ -124,6 +124,7 @@ public:
     int control_count_; ///< Threshold for using joystick input
     int reset_count_; ///< Threshold for clearing input to 0
     double pwm_steering_neutral_;
+    double steering_nonlinearity_; 
     double steering_;
     double throttle_;
     double steering_gain_; 

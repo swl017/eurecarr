@@ -31,6 +31,7 @@ MessageInterface::MessageInterface()
      */
 
     nhp.param("pwm_steering_neutral_", pwm_steering_neutral_, 1500.0);
+    nhp.param("steering_nonlinearity", steering_nonlinearity_, 0.0);
     nhp.param("steering_gain", steering_gain_, 1.0);
     nhp.param("throttle_gain", throttle_gain_, 0.92);
     nhp.param("throttle_max", throttle_max_, 0.6);
@@ -38,7 +39,7 @@ MessageInterface::MessageInterface()
     nhp.param("invert_steering", invert_steering_, false);
     nhp.param("invert_throttle", invert_throttle_, false);
     nhp.param("steering_lpf_hz", steering_lpf_hz_, 100.0);
-    nhp.param("throttle_lpf_hz", throttle_lpf_hz_, 1.0);
+    nhp.param("throttle_lpf_hz", throttle_lpf_hz_, 10.0);
     if(steering_gain_ < 0 || throttle_gain_ < 0){
 	    ROS_WARN("Do not set steering or throttle gain below 0. Use 'invert_*_' instead.");
     }
@@ -225,7 +226,8 @@ void MessageInterface::chassisCommandMPPICallback(autorally_msgs::chassisCommand
 	if(invert_throttle_ == true){
 		throttle_command_mppi_ = -throttle_command_mppi_;
 	}
-	steering_ = steering_command_mppi_;
+	steering_ = steering_nonlinearity_ * pow(steering_command_mppi_, 3.0) + (1-steering_nonlinearity_) * steering_command_mppi_;
+	//steering_ = steering_command_mppi_;
         throttle_ = throttle_command_mppi_;
 //    }
     steering_ = steering_gain_ * steering_;
@@ -246,7 +248,8 @@ void MessageInterface::chassisCommandWptCallback(autorally_msgs::chassisCommand 
 	if(invert_steering_ == true){
 		steering_command_wpt_ = -steering_command_wpt_;
 	}
-        steering_ = steering_command_wpt_;
+	steering_ = steering_nonlinearity_ * pow(steering_command_wpt_, 3.0) + (1-steering_nonlinearity_) * steering_command_wpt_;
+        //steering_ = steering_command_wpt_;
 	if(invert_throttle_ == true){
 		throttle_command_wpt_ = -throttle_command_wpt_;
 	}
@@ -277,7 +280,7 @@ void MessageInterface::chassisCommandCSCCallback(std_msgs::Float64 chassis_comma
 
 void MessageInterface::chassisCommandJoyCallback(autorally_msgs::chassisCommand chassis_command_msg)
 {
-    // double steer, throttle;
+    double steering_joy, throttle_joy;
     // // collect
     // if(control_sender_ == "mppi_controller")
     // {
@@ -293,16 +296,17 @@ void MessageInterface::chassisCommandJoyCallback(autorally_msgs::chassisCommand 
     if(control_count_ > 10)
     {
         control_sender_ = "joystick";
-        steering_ = chassis_command_msg.steering;
-        throttle_ = chassis_command_msg.throttle;
+        steering_joy = chassis_command_msg.steering;
+        throttle_joy = chassis_command_msg.throttle;
         if(invert_steering_ == true){
-            steering_ = -steering_;
+            steering_joy = -steering_joy;
         }
         if(invert_throttle_ == true){
-            throttle_ = -throttle_;
+            throttle_joy = -throttle_joy;
         }
-	steering_ = steering_gain_ * steering_;
-        throttle_ = throttle_gain_ * throttle_;
+	steering_joy = steering_nonlinearity_ * pow(steering_joy, 3.0) + (1-steering_nonlinearity_) * steering_joy;
+	steering_ = steering_gain_ * steering_joy;
+        throttle_ = throttle_gain_ * throttle_joy;
     }
     control_count_ = std::min(50, control_count_ + 1);
     reset_count_ = 0;
@@ -310,10 +314,11 @@ void MessageInterface::chassisCommandJoyCallback(autorally_msgs::chassisCommand 
 
   void MessageInterface::ConfigCallback(const MessageInterfaceParamsConfig &config, uint32_t level)
   {
+    steering_nonlinearity_ = config.steering_nonlinearity;
     steering_lpf_hz_ = config.steering_lpf_hz;
     throttle_lpf_hz_ = config.throttle_lpf_hz;
     hasNewDynamicParams_ = true;
-    std::cout << "Got a config!!" << " steering_lpf_hz = " << steering_lpf_hz_ << ", throttle_lpf_hz = " << throttle_lpf_hz_ << std::endl;
+    std::cout << "MessageInterface Got a config!!" << "steering_nonlinearity: " << steering_nonlinearity_ << ", steering_lpf_hz: " << steering_lpf_hz_ << ", throttle_lpf_hz: " << throttle_lpf_hz_ << std::endl;
   }
 }
 
