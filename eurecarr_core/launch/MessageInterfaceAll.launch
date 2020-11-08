@@ -1,0 +1,10 @@
+<!-- Launches MessageInterface and all sensors(GPS IMU Lidar) -->
+
+<launch>
+
+  <!-- <include file="$(find autorally_core)/launch/hardware.machine" /> -->
+  <include file="$(find eurecarr_core)/launch/MessageInterface.launch" />
+  <include file="$(find eurecarr_core)/launch/GPS_IMU.launch" />
+  <include file="$(find eurecarr_core)/launch/Hokuyo.launch" />
+
+</launch>

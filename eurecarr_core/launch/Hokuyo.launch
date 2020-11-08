@@ -1,0 +1,15 @@
+<launch>
+
+<!-- Hokuyo node -->
+  <arg name="ip_address" value="192.168.1.10" />
+
+  <include file="$(find urg_node)/launch/urg_lidar.launch" >
+    <arg name="ip_address" value="$(arg ip_address)"/>
+  </include>
+  <node pkg="laser_to_xy" name="laser_to_xy" type="laser_to_xy.py" output="screen">
+    <remap from="pointcloud_from_laser" to="PointCloud/obstacles"/>
+  </node>
+  <node pkg="eurecarr_core" name="frameBroadcaster" type="frameBroadcaster.py" output="screen"/>
+
+
+</launch>
