@@ -1,0 +1,6 @@
+<launch>
+
+  <node type="rviz" name="rviz" pkg="rviz" args="-d $(find eurecarr_core)/rviz/eurecarXO1.rviz" />
+  <include file="$(find autorally_control)/launch/mapVisualize.launch" />
+
+</launch>
