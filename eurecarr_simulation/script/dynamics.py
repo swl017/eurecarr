@@ -1,6 +1,7 @@
 import numpy as np
 import imp
 import torch
+import model
 
 def sigmoid(x):
     return 1 / (1 +np.exp(-x))
@@ -67,14 +68,18 @@ class Dynamics(object):
 
         if self.modelType == 5:
             # pytorch model
-            self.importPtModel = imp.load_source("model.py","/home/sw/catkin_ws/src/eurecarr/eurecarr_simulation/script/module/")
-            device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+            # self.importPtModel = imp.load_source("model.py","/home/sw/catkin_ws/src/eurecarr/eurecarr_simulation/script/module/")
+            self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+            # device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
             input_size = 6 # roll, vx, vy, yaw_rate, steer, throttle
             output_size = 4 # roll_der, vx_der, vy_der, yaw_der2
-            self.ptmodel = self.importPtModel.NeuralNet(input_size, output_size)
-            self.ptmodel_path = "/home/sw/Downloads/veh_dynamics_learning/saved_model/checkpoint_gpu_wo_scaler.pt"
-            self.ptmodel.load_state_dict(torch.load(self.ptmodel_path))
-            self.ptmodel.to(device).double()
+            self.ptmodel = model.NeuralNet(input_size, output_size)
+            # self.ptmodel = self.importPtModel.NeuralNet(input_size, output_size)
+            self.ptmodel_path = "/media/sw/T7/ubuntu_desktop_backup/2020-11-13/catkin_ws/src/eurecarr_field/eurecarr_simulation/src/for_model_simulation/austria_only/checkpoint_0-0.01587553508579731.pt"
+            # self.ptmodel_path = "/home/sw/Downloads/veh_dynamics_learning/saved_model/checkpoint_gpu_wo_scaler.pt"
+            loaded_state = torch.load(self.ptmodel_path,map_location='cuda:0')
+            self.ptmodel.load_state_dict(loaded_state)
+            self.ptmodel.to(self.device).double()
             self.ptmodel.eval()
 
 
@@ -146,7 +151,7 @@ class Dynamics(object):
         # yaw_dotdot   = (vx_dot*np.sin(inputs[0]*self.steerRatio)+states[4]*np.cos(inputs[0]*self.steerRatio)*(states[4]*np.sin(inputs[0]*self.steerRatio)/self.length)) / self.length
         # yaw_dot      = states[4]*np.sin(inputs[0]*self.steerRatio)/self.length
         yaw_dot      = states[6] + yaw_dotdot * self.dt
-        states_der   = np.array([x_dot, y_dot, yaw_dot, roll_dot, vx_dot, vy_dot, yaw_dotdot])
+        states_der   = np.array([x_dot, y_dot, yaw_dot, roll_dot, vx_dot, vy_dot, yaw_dotdot], dtype=float)
         self.last_states = states
         self.last_inputs = inputs
         return states_der
@@ -287,6 +292,10 @@ class Dynamics(object):
 
     def InferNN(self, states, inputs):
 
-        states_der = self.ptmodel(np.append(states, inputs).cuda())
+        network_inputs = np.append(states[:4], inputs)
+        dynamics = (self.ptmodel.forward(torch.from_numpy(network_inputs).to(self.device))).tolist()
+        # states_der = self.ptmodel(np.append(states[:4], inputs).cuda())
+        kinematics = (self.simpleBicycleModel(states, inputs))[:3]
+        states_der = np.append(kinematics, dynamics)
 
         return states_der

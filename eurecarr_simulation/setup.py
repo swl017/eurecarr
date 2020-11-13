@@ -25,7 +25,7 @@ from distutils.core import setup
 from catkin_pkg.python_setup import generate_distutils_setup
 
 d = generate_distutils_setup(
-  scripts=['script/simulate_dynamics.py'], # TODO: change files names
+  scripts=['script/simulate_dynamics.py', 'script/simulate_dynamics_no_tf.py'], # TODO: change files names
   requires=['std_msgs', 'nav_msgs', 'rospy', 'geometry_msgs']
 )
 

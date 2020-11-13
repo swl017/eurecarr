@@ -4,9 +4,9 @@ from std_msgs.msg import Float64
 from geometry_msgs.msg import PoseStamped, Quaternion, TransformStamped, Accel
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import Joy
-from tf.transformations import quaternion_from_euler
-import tf_conversions
-import tf2_ros
+# from tf.transformations import quaternion_from_euler
+# import tf_conversions
+# import tf2_ros
 
 # code from: https://devnauts.tistory.com/61
 
@@ -18,8 +18,6 @@ import sys
 from time import gmtime, strftime
 
 import dynamics
-
-
 
 class SimulateStep(object):
     def __init__(self, stateDim, inputDim, dt):
@@ -59,7 +57,7 @@ class SimulateStep(object):
         self.poseOdom_pub   = rospy.Publisher('pose_estimate', Odometry, queue_size=1)
         self.input_pub  = rospy.Publisher('simulation/inputs', Joy, queue_size=1)
         self.accel_pub  = rospy.Publisher('acceleration/all', Accel, queue_size=1)
-        self.br = tf2_ros.TransformBroadcaster()
+        # self.br = tf2_ros.TransformBroadcaster()
 
  
         # pygame.init() 
@@ -158,7 +156,7 @@ class SimulateStep(object):
         t.transform.rotation.y = q.y
         t.transform.rotation.z = q.z
         t.transform.rotation.w = q.w
-        self.br.sendTransform(t)
+        # self.br.sendTransform(t)
 
     def publishPose(self, stamp, states):
         poseMsg = PoseStamped()
@@ -172,7 +170,7 @@ class SimulateStep(object):
         roll  = states[3]
         pitch = 0.0
         yaw   = states[2]
-        q     = quaternion_from_euler(roll, pitch, yaw)
+        q     = self.quaternion_from_euler(roll, pitch, yaw)
         poseMsg.pose.orientation.x = q[0]
         poseMsg.pose.orientation.y = q[1]
         poseMsg.pose.orientation.z = q[2]
@@ -198,7 +196,7 @@ class SimulateStep(object):
         roll  = states[3]
         pitch = 0.0
         yaw   = states[2]
-        q     = quaternion_from_euler(roll, pitch, yaw)
+        q     = self.quaternion_from_euler(roll, pitch, yaw)
         odomMsg.pose.pose.orientation.x = q[0]
         odomMsg.pose.pose.orientation.y = q[1]
         odomMsg.pose.pose.orientation.z = q[2]
@@ -226,7 +224,7 @@ class SimulateStep(object):
         roll  = states[3]
         pitch = 0.0
         yaw   = states[2]
-        q     = quaternion_from_euler(roll, pitch, yaw)
+        q     = self.quaternion_from_euler(roll, pitch, yaw)
         odomMsg.pose.pose.orientation.x = q[0]
         odomMsg.pose.pose.orientation.y = q[1]
         odomMsg.pose.pose.orientation.z = q[2]
@@ -266,6 +264,26 @@ class SimulateStep(object):
         timelabel = strftime("%Y-%m-%d-%H-%M", gmtime())
         np.savetxt(name+timelabel+".csv", data, delimiter=",")
 
+    def quaternion_from_euler(self, roll, pitch, yaw):
+        q = Quaternion()
+        cy = np.cos(yaw * 0.5)
+        sy = np.sin(yaw * 0.5)
+        cp = np.cos(pitch * 0.5)
+        sp = np.sin(pitch * 0.5)
+        cr = np.cos(roll * 0.5)
+        sr = np.sin(roll * 0.5)
+        q.w = cr * cp * cy + sr * sp * sy
+        q.x = sr * cp * cy - cr * sp * sy
+        q.y = cr * sp * cy + sr * cp * sy
+        q.z = cr * cp * sy - sr * sp * cy
+
+        q_list = [0,0,0,1]
+        q_list[0] = q.x
+        q_list[1] = q.y
+        q_list[2] = q.z
+        q_list[3] = q.w
+
+        return q_list
 
 
 
