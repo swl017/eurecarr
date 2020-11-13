@@ -34,7 +34,7 @@ class SimulateStep(object):
         self.y0          = 0#150
         self.yaw0        = 0
         self.roll0       = 0
-        self.vx0         = 0
+        self.vx0         = 30
         self.vy0         = 0
         self.yawd0       = 0
         self.states_init = [self.x0, self.y0, self.yaw0, self.roll0, self.vx0, self.vy0, self.yawd0]
@@ -292,7 +292,7 @@ class SimulateStep(object):
 def main():
     rospy.init_node('simulate_dynamics')
 
-    dt           = 0.05
+    dt           = 0.01
     Hz           = int(1/dt)
     stateDim     = 7
     inputDim     = 2
@@ -305,9 +305,9 @@ def main():
     while not rospy.is_shutdown():
         joy.get_value()
         # joystick
-        # inputs = np.array([joy.axis[3], -joy.axis[1]])
-        # steer
-        inputs = np.array([sim.steer_, -joy.axis[1]])
+        steering = joy.axis[3]
+        throttle = -joy.axis[1]
+        inputs = np.array([steering, throttle])
         sim.toggle = joy.toggle
         sim.one_step_forward(inputs)
         # clock.tick(Hz)
