@@ -28,15 +28,15 @@ class SimulateStep(object):
         self.dt          = dt
         self.img_name    = ''
         self.img         = None
-        self.length      = 15
-        self.width       = 8
-        self.x0          = 0#250
-        self.y0          = 0#150
+        self.length      = 4.833
+        self.width       = 1.921
+        self.x0          = 0
+        self.y0          = 0
         self.yaw0        = 0
-        self.roll0       = 0
-        self.vx0         = 30
-        self.vy0         = 0
-        self.yawd0       = 0
+        self.roll0       = 0.0207
+        self.vx0         = 1
+        self.vy0         = 0.00086
+        self.yawd0       = 0.0003
         self.states_init = [self.x0, self.y0, self.yaw0, self.roll0, self.vx0, self.vy0, self.yawd0]
         self.stateDim    = stateDim
         self.inputDim    = inputDim
@@ -50,7 +50,8 @@ class SimulateStep(object):
         self.inputs_der  = np.zeros(self.inputDim)
         self.dynamics    = dynamics.Dynamics(stateDim, inputDim, dt)
 
-        self.toggle     = False
+        self.toggle      = False
+        self.no_roll     = True
  
         self.pose_pub   = rospy.Publisher('simulation/pose', PoseStamped, queue_size=1)
         self.bodyOdom_pub   = rospy.Publisher('simulation/bodyOdom', Odometry, queue_size=1)
@@ -66,8 +67,6 @@ class SimulateStep(object):
         self.BLACK      = (255,255,255)
         self.WHITE      = (0,0,0)
 
-        self.steer_sub   = rospy.Subscriber('stanleytopic', Float64, self.steerCallback)
-        self.steer_ = 0
 
     def steerCallback(self, msg):
         self.steer_ = msg.data
@@ -79,6 +78,8 @@ class SimulateStep(object):
             self.states_der = np.zeros_like(self.states)
             self.states     = self.states_init
         self.states     = self.states + self.states_der * self.dt
+        if self.no_roll == True:
+            self.states[3] = 0
         self.state_hist  = np.append(self.state_hist, [self.states], axis=0)
         self.state_der_hist  = np.append(self.state_der_hist, [self.states_der], axis=0)
         data_input = np.hstack([self.states[self.stateDim-self.dynamicsDim:], self.inputs])

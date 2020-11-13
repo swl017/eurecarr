@@ -75,11 +75,12 @@ class Dynamics(object):
             output_size = 4 # roll_der, vx_der, vy_der, yaw_der2
             self.ptmodel = model.NeuralNet(input_size, output_size)
             # self.ptmodel = self.importPtModel.NeuralNet(input_size, output_size)
-            self.ptmodel_path = "/media/sw/T7/ubuntu_desktop_backup/2020-11-13/catkin_ws/src/eurecarr_field/eurecarr_simulation/src/for_model_simulation/austria_only/checkpoint_0-0.01587553508579731.pt"
+            # self.ptmodel_path = "/home/usrg/catkin_ws/src/eurecarr_field/eurecarr_simulation/src/for_model_simulation/austria_only/checkpoint_9000-8.842071110848337e-05.pt"
+            self.ptmodel_path = "/home/usrg/catkin_ws/src/eurecarr_field/eurecarr_simulation/src/for_model_simulation/all_track_wo_scaling/checkpoint_1000-0.0002718334726523608.pt"
             # self.ptmodel_path = "/home/sw/Downloads/veh_dynamics_learning/saved_model/checkpoint_gpu_wo_scaler.pt"
             loaded_state = torch.load(self.ptmodel_path,map_location='cuda:0')
             self.ptmodel.load_state_dict(loaded_state)
-            self.ptmodel.to(self.device).double()
+            self.ptmodel.to(self.device).float()
             self.ptmodel.eval()
 
 
@@ -292,10 +293,27 @@ class Dynamics(object):
 
     def InferNN(self, states, inputs):
 
-        network_inputs = np.append(states[:4], inputs)
-        dynamics = (self.ptmodel.forward(torch.from_numpy(network_inputs).to(self.device))).tolist()
+        network_inputs = np.append(states[3:], inputs)
+        network_inputs[0] = 0.0
+        input_normalize = False
+        scale_mean = np.array([8.17603532e-03, 5.53549084e+01, 1.00908206e-01, -7.04567338e-02, -5.63617684e-02, 6.20993527e-01])
+        scale_std  = np.array([0.02579808, 18.2459027, 1.15707734, 0.4170532, 0.35862873, 0.57737644])
+        if input_normalize == True:
+            network_inputs = (network_inputs - scale_mean) / scale_std
+        print("input: ", str(network_inputs))
+
+        dynamics = (self.ptmodel.forward(torch.from_numpy(network_inputs).to(self.device).float())).tolist()
+        dynamics[0] = 0.0
+        print("dynamics: "+str(dynamics))
         # states_der = self.ptmodel(np.append(states[:4], inputs).cuda())
         kinematics = (self.simpleBicycleModel(states, inputs))[:3]
         states_der = np.append(kinematics, dynamics)
 
         return states_der
+
+
+# def main():
+
+
+# if __name__ == "__main__":
+#     main()
