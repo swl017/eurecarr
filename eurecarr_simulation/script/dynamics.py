@@ -300,13 +300,14 @@ class Dynamics(object):
             scale_mean = np.array([8.17603532e-03, 5.53549084e+01, 1.00908206e-01, -7.04567338e-02, -5.63617684e-02, 6.20993527e-01])
             scale_std  = np.array([0.02579808, 18.2459027, 1.15707734, 0.4170532, 0.35862873, 0.57737644])
             network_inputs = (network_inputs - scale_mean) / scale_std
-        print("input: ", str(np.around(network_inputs, 6)))
+        print("input:   ", str(np.around(network_inputs, 6)))
 
         dynamics = (self.ptmodel.forward(torch.from_numpy(network_inputs).to(self.device).float())).tolist()
         dynamics[0] = 0.0
         # sw: Looks like there are ranges the model works well. 2020-11-14
         dynamics[3] = (dynamics[3] - 0.042) * 10
         print("dynamics: "+str(np.around(dynamics, 6)))
+        print("---------")
         # states_der = self.ptmodel(np.append(states[:4], inputs).cuda())
         kinematics = (self.kinematicBicycleModel(states, inputs))[:3]
         states_der = np.append(kinematics, dynamics)
