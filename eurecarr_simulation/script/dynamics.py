@@ -304,9 +304,11 @@ class Dynamics(object):
 
         dynamics = (self.ptmodel.forward(torch.from_numpy(network_inputs).to(self.device).float())).tolist()
         dynamics[0] = 0.0
+        # sw: Looks like there are ranges the model works well. 2020-11-14
+        dynamics[3] = (dynamics[3] - 0.042) * 10
         print("dynamics: "+str(np.around(dynamics, 6)))
         # states_der = self.ptmodel(np.append(states[:4], inputs).cuda())
-        kinematics = (self.simpleBicycleModel(states, inputs))[:3]
+        kinematics = (self.kinematicBicycleModel(states, inputs))[:3]
         states_der = np.append(kinematics, dynamics)
 
         return states_der
