@@ -294,7 +294,7 @@ def main():
     rospy.init_node('simulate_dynamics')
 
     dt           = 0.01
-    Hz           = int(1/dt)
+    Hz           = 1.0/dt
     stateDim     = 7
     inputDim     = 2
     joy          = joystick.Joystick()

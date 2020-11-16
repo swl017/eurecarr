@@ -76,7 +76,8 @@ class Dynamics(object):
             self.ptmodel = model.NeuralNet(input_size, output_size)
             # self.ptmodel = self.importPtModel.NeuralNet(input_size, output_size)
             # self.ptmodel_path = "/home/usrg/catkin_ws/src/eurecarr_field/eurecarr_simulation/src/for_model_simulation/austria_only/checkpoint_9000-8.842071110848337e-05.pt"
-            self.ptmodel_path = "/home/usrg/catkin_ws/src/eurecarr_field/eurecarr_simulation/src/for_model_simulation/all_track_wo_scaling/checkpoint_1000-0.0002718334726523608.pt"
+            self.ptmodel_path = "/home/sw/catkin_ws/src/eurecarr_field/eurecarr_simulation/src/for_model_simulation/all_track_w_scaling/checkpoint_9000-0.1732824593782425.pt"
+            # self.ptmodel_path = "/home/sw/catkin_ws/src/eurecarr_field/eurecarr_simulation/src/for_model_simulation/all_track_wo_scaling/checkpoint_1000-0.0002718334726523608.pt"
             # self.ptmodel_path = "/home/sw/Downloads/veh_dynamics_learning/saved_model/checkpoint_gpu_wo_scaler.pt"
             loaded_state = torch.load(self.ptmodel_path,map_location='cuda:0')
             self.ptmodel.load_state_dict(loaded_state)
@@ -293,21 +294,31 @@ class Dynamics(object):
 
     def InferNN(self, states, inputs):
 
+        no_roll = False
+        input_normalize = True
+        output_normalize = True
+
         network_inputs = np.append(states[3:], inputs)
-        network_inputs[0] = 0.0
-        input_normalize = False
+
         if input_normalize == True:
             scale_mean = np.array([8.17603532e-03, 5.53549084e+01, 1.00908206e-01, -7.04567338e-02, -5.63617684e-02, 6.20993527e-01])
             scale_std  = np.array([0.02579808, 18.2459027, 1.15707734, 0.4170532, 0.35862873, 0.57737644])
             network_inputs = (network_inputs - scale_mean) / scale_std
-        print("input:   ", str(np.around(network_inputs, 6)))
+        # print("input:   ", str(np.around(network_inputs, 6)))
 
-        dynamics = (self.ptmodel.forward(torch.from_numpy(network_inputs).to(self.device).float())).tolist()
-        dynamics[0] = 0.0
-        # sw: Looks like there are ranges the model works well. 2020-11-14
-        dynamics[3] = (dynamics[3] - 0.042) * 10
-        print("dynamics: "+str(np.around(dynamics, 6)))
-        print("---------")
+        dynamics = np.array((self.ptmodel.forward(torch.from_numpy(network_inputs).to(self.device).float())).tolist())
+
+        if output_normalize == True:
+            output_scale_mean = np.array([-1.48909024e-06, 9.03962303e-04, 6.04029535e-05, -3.41900635e-06])
+            output_scale_std  = np.array([0.00066329, 0.09660722, 0.03693758, 0.01352752])
+            dynamics = output_scale_std * dynamics + output_scale_mean
+
+        if no_roll == True:
+            dynamics[0] = 0.0
+
+        dynamics = dynamics / self.dt
+        # print("dynamics: "+str(np.around(dynamics, 6)))
+        # print("---------")
         # states_der = self.ptmodel(np.append(states[:4], inputs).cuda())
         kinematics = (self.kinematicBicycleModel(states, inputs))[:3]
         states_der = np.append(kinematics, dynamics)
@@ -315,8 +326,47 @@ class Dynamics(object):
         return states_der
 
 
-# def main():
+def main():
 
+    dt        = 0.01
+    print("dt : "+str(dt) + " seconds")
 
-# if __name__ == "__main__":
-#     main()
+    # states
+    x0        = 0.0
+    y0        = 0.0
+    yaw0      = 0.0
+    roll0     = 0.0
+    vx0       = 10.0
+    vy0       = 0.0
+    yaw_dot0  = 0.0
+
+    # inputs
+    steering  = 0.0
+    throttle  = 0.5
+
+    states = np.array([x0, y0, yaw0, roll0, vx0, vy0, yaw_dot0])
+    inputs = np.array([steering, throttle])
+
+    state_dim = 7
+    input_dim = 2
+    model = Dynamics(state_dim, input_dim, dt)
+    
+    num_sim = 1
+    for i in range(num_sim):
+        states_der = model.forward(states, inputs)
+        new_states = states + states_der * dt
+
+        print("Sim step  : " + str(i))
+        print("Inputs    : " + str(np.around(inputs, 3)))
+        print("State     : " + str(np.around(states, 3)))
+        print("              x'     y'    yaw'     roll'      vx'    vy'    yaw_dot'")
+        print("State_der : " + str(np.around(states_der, 3)))
+        print("State_del : " + str(np.around(states_der * dt, 3)))
+        print("State_new : " + str(np.around(new_states, 3)))
+
+        states = new_states
+
+        print("====================")
+
+if __name__ == "__main__":
+    main()
