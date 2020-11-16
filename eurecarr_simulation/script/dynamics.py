@@ -76,7 +76,8 @@ class Dynamics(object):
             self.ptmodel = model.NeuralNet(input_size, output_size)
             # self.ptmodel = self.importPtModel.NeuralNet(input_size, output_size)
             # self.ptmodel_path = "/home/usrg/catkin_ws/src/eurecarr_field/eurecarr_simulation/src/for_model_simulation/austria_only/checkpoint_9000-8.842071110848337e-05.pt"
-            self.ptmodel_path = "/home/sw/catkin_ws/src/eurecarr_field/eurecarr_simulation/src/for_model_simulation/all_track_w_scaling/checkpoint_9000-0.1732824593782425.pt"
+            self.ptmodel_path = "/home/sw/catkin_ws/src/eurecarr_field/eurecarr_simulation/src/for_model_simulation/all_track_w_inout_scaling/checkpoint_9000-0.10731091350317001.pt"
+            # self.ptmodel_path = "/home/sw/catkin_ws/src/eurecarr_field/eurecarr_simulation/src/for_model_simulation/all_track_w_scaling/checkpoint_9000-0.1732824593782425.pt"
             # self.ptmodel_path = "/home/sw/catkin_ws/src/eurecarr_field/eurecarr_simulation/src/for_model_simulation/all_track_wo_scaling/checkpoint_1000-0.0002718334726523608.pt"
             # self.ptmodel_path = "/home/sw/Downloads/veh_dynamics_learning/saved_model/checkpoint_gpu_wo_scaler.pt"
             loaded_state = torch.load(self.ptmodel_path,map_location='cuda:0')
@@ -301,16 +302,20 @@ class Dynamics(object):
         network_inputs = np.append(states[3:], inputs)
 
         if input_normalize == True:
-            scale_mean = np.array([8.17603532e-03, 5.53549084e+01, 1.00908206e-01, -7.04567338e-02, -5.63617684e-02, 6.20993527e-01])
-            scale_std  = np.array([0.02579808, 18.2459027, 1.15707734, 0.4170532, 0.35862873, 0.57737644])
-            network_inputs = (network_inputs - scale_mean) / scale_std
+            # scale_mean = np.array([8.17603532e-03, 5.53549084e+01, 1.00908206e-01, -7.04567338e-02, -5.63617684e-02, 6.20993527e-01])
+            # scale_std  = np.array([0.02579808, 18.2459027, 1.15707734, 0.4170532, 0.35862873, 0.57737644])
+            input_scale_mean = np.array([-2.38911651e-03, 4.43346419e+01, -2.06320674e-02, 4.74048359e-02, 2.99485282e-02, 3.75971948e-01])
+            input_scale_std  = np.array([0.01381067, 10.85059593, 0.26437856, 0.3364198, 0.20393657, 0.30655808])
+            network_inputs = (network_inputs - input_scale_mean) / input_scale_std
         # print("input:   ", str(np.around(network_inputs, 6)))
 
         dynamics = np.array((self.ptmodel.forward(torch.from_numpy(network_inputs).to(self.device).float())).tolist())
 
         if output_normalize == True:
-            output_scale_mean = np.array([-1.48909024e-06, 9.03962303e-04, 6.04029535e-05, -3.41900635e-06])
-            output_scale_std  = np.array([0.00066329, 0.09660722, 0.03693758, 0.01352752])
+            # output_scale_mean = np.array([-1.48909024e-06, 9.03962303e-04, 6.04029535e-05, -3.41900635e-06])
+            # output_scale_std  = np.array([0.00066329, 0.09660722, 0.03693758, 0.01352752])
+            output_scale_mean = np.array([1.76550286e-07, 1.59279426e-03, -2.68102818e-05, 1.08824255e-05])
+            output_scale_std  = np.array([0.00021054, 0.05270249, 0.00927558, 0.00694249])
             dynamics = output_scale_std * dynamics + output_scale_mean
 
         if no_roll == True:
