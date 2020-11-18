@@ -59,7 +59,8 @@ class Dynamics(object):
             # self.modelPath  = '/home/sw/rosbag/dnn_model/2020-08-16/bicycle/optitrack_nn_model_20200823-164706.npz'
             # self.modelPath  = '/home/sw/rosbag/NNModel/dnn_model/F1/2020-09-02/f1_nn_model_20200903-092356.npz'
             # self.modelPath  = '/home/sw/rosbag/NNModel/dnn_model/F1/2020-09-02/best_model_20200908-154110.npz'
-            self.modelPath  = '/home/sw/Downloads/veh_dynamics_learning/0909.npz'
+            # self.modelPath  = '/home/sw/Downloads/veh_dynamics_learning/0909.npz'
+            self.modelPath  = '/home/sw/catkin_ws/src/eurecarr_field/eurecarr_simulation/src/autorally_nnet_09_12_2018.npz'
             
             self.nnet = np.load(self.modelPath)
             self.act_fcn = np.tanh
@@ -76,7 +77,7 @@ class Dynamics(object):
             self.ptmodel = model.NeuralNet(input_size, output_size)
             # self.ptmodel = self.importPtModel.NeuralNet(input_size, output_size)
             # self.ptmodel_path = "/home/usrg/catkin_ws/src/eurecarr_field/eurecarr_simulation/src/for_model_simulation/austria_only/checkpoint_9000-8.842071110848337e-05.pt"
-            self.ptmodel_path = "/home/sw/catkin_ws/src/eurecarr_field/eurecarr_simulation/src/for_model_simulation/all_track_w_inout_scaling/checkpoint_9000-0.10731091350317001.pt"
+            self.ptmodel_path = "/home/sw/Desktop/checkpoint_9000-0.41358309984207153.pt"
             # self.ptmodel_path = "/home/sw/catkin_ws/src/eurecarr_field/eurecarr_simulation/src/for_model_simulation/all_track_w_scaling/checkpoint_9000-0.1732824593782425.pt"
             # self.ptmodel_path = "/home/sw/catkin_ws/src/eurecarr_field/eurecarr_simulation/src/for_model_simulation/all_track_wo_scaling/checkpoint_1000-0.0002718334726523608.pt"
             # self.ptmodel_path = "/home/sw/Downloads/veh_dynamics_learning/saved_model/checkpoint_gpu_wo_scaler.pt"
@@ -261,8 +262,8 @@ class Dynamics(object):
         vy       = states[5]
         yaw_dot  = states[6]
         steer    = inputs[0]
-        # throttle = inputs[1]
-        throttle = 0.0
+        throttle = inputs[1]
+        # throttle = 0.0
         nn_input = [roll, vx, vy, yaw_dot, steer, throttle]
         temp1    = np.zeros(len(self.nnet['dynamics_b1']))
         temp2    = np.zeros(len(self.nnet['dynamics_b2']))
