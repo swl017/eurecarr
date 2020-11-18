@@ -77,7 +77,7 @@ class Dynamics(object):
             self.ptmodel = model.NeuralNet(input_size, output_size)
             # self.ptmodel = self.importPtModel.NeuralNet(input_size, output_size)
             # self.ptmodel_path = "/home/usrg/catkin_ws/src/eurecarr_field/eurecarr_simulation/src/for_model_simulation/austria_only/checkpoint_9000-8.842071110848337e-05.pt"
-            self.ptmodel_path = "/home/sw/Desktop/torch_to_npz/checkpoint_9000-0.07857070863246918.pt"
+            self.ptmodel_path = "/home/sw/Desktop/torch_to_npz/checkpoint_9000-0.1108960211277008.pt"
             # self.ptmodel_path = "/home/sw/catkin_ws/src/eurecarr_field/eurecarr_simulation/src/for_model_simulation/all_track_w_scaling/checkpoint_9000-0.1732824 c593782425.pt"
             # self.ptmodel_path = "/home/sw/catkin_ws/src/eurecarr_field/eurecarr_simulation/src/for_model_simulation/all_track_wo_scaling/checkpoint_1000-0.0002718334726523608.pt"
             # self.ptmodel_path = "/home/sw/Downloads/veh_dynamics_learning/saved_model/checkpoint_gpu_wo_scaler.pt"
@@ -115,7 +115,23 @@ class Dynamics(object):
             states_der = self.neuralNetModel(states, inputs)
         elif self.modelType == 5:
             states_der = self.InferNN(states, inputs)
-            
+
+            # # enforce constraints by changyoung -- test
+            # velocity_thres = 1 
+            # throttle_deadzone = 0.1
+            # if states[1] < velocity_thres and inputs[1] < throttle_deadzone:
+            #     states_der[0] = 0.0
+            #     states_der[1] = max(0.0, states_der[1])
+            #     # states_der[1] = 0.0
+            #     vy_vx_ratio = 0.1
+            #     states_der[2] = np.clip(states_der[2], -vy_vx_ratio * abs(states_der[1]), vy_vx_ratio * abs(states_der[1]))
+            #     # states_der[2] = 0.0
+            #     vroll_vx_ratio = 0.001
+            #     # states_der[3] = np.clip(states_der[3], -vroll_vx_ratio * abs(states_der[1]), vroll_vx_ratio * abs(states_der[1]))
+            #     states_der[3] = np.clip(states_der[3], -np.pi/6, np.pi/6)
+            #     # states_der[3] = 0.0
+
+            #     print("Constraints enforcing")
 
         return states_der
 
@@ -296,17 +312,24 @@ class Dynamics(object):
 
     def InferNN(self, states, inputs):
 
+        original_inputs = inputs
+
         no_roll = False
         input_normalize = True
         output_normalize = True
+        invert_steering = True
+        clip_dynamics = True
+
+        # if invert_steering == True:
+        #     inputs[0] = -inputs[0]
 
         network_inputs = np.append(states[3:], inputs)
 
         if input_normalize == True:
             # scale_mean = np.array([8.17603532e-03, 5.53549084e+01, 1.00908206e-01, -7.04567338e-02, -5.63617684e-02, 6.20993527e-01])
             # scale_std  = np.array([0.02579808, 18.2459027, 1.15707734, 0.4170532, 0.35862873, 0.57737644])
-            input_scale_mean = np.array([-2.38911651e-03, 4.43346419e+01, -2.06320674e-02, 4.74048359e-02, 2.99485282e-02, 3.75971948e-01])
-            input_scale_std  = np.array([0.01381067, 10.85059593, 0.26437856, 0.3364198, 0.20393657, 0.30655808])
+            input_scale_mean = np.array([-1.30388890e-07,  4.34927894e+01,  2.82139230e-07,  3.33604691e-07, 2.62413137e-05,  3.77021360e-01])
+            input_scale_std  = np.array([1.33284563e-02, 1.35667888e+01, 2.67590211e-01, 3.40180713e-01, 2.30665672e-01, 3.36044714e-01])
             network_inputs = (network_inputs - input_scale_mean) / input_scale_std
         # print("input:   ", str(np.around(network_inputs, 6)))
 
@@ -315,18 +338,33 @@ class Dynamics(object):
         if output_normalize == True:
             # output_scale_mean = np.array([-1.48909024e-06, 9.03962303e-04, 6.04029535e-05, -3.41900635e-06])
             # output_scale_std  = np.array([0.00066329, 0.09660722, 0.03693758, 0.01352752])
-            output_scale_mean = np.array([1.76550286e-07, 1.59279426e-03, -2.68102818e-05, 1.08824255e-05])
-            output_scale_std  = np.array([0.00021054, 0.05270249, 0.00927558, 0.00694249])
+            output_scale_mean = np.array([-8.23147612e-08,  2.57938557e-03,  1.43457696e-08, -3.91454942e-08])
+            output_scale_std  = np.array([0.00175233, 0.05621635, 0.00910899, 0.00678313])
             dynamics = output_scale_std * dynamics + output_scale_mean
 
         if no_roll == True:
             dynamics[0] = 0.0
+        
+        # clip accelerations
+        if clip_dynamics == True:
+            rolld_max = 0.0085
+            vxd_max = 0.1533
+            vyd_max = 0.02418
+            yawdd_max = 0.088
+            dynamics[0] = np.clip(dynamics[0], -rolld_max, rolld_max)
+            dynamics[1] = np.clip(dynamics[1], -vxd_max, vxd_max)
+            dynamics[2] = np.clip(dynamics[2], -vyd_max, vyd_max)
+            dynamics[3] = np.clip(dynamics[3], -yawdd_max, yawdd_max)
 
         dynamics = dynamics / self.dt
+        # invert yaw
+        # dynamics[3] = -dynamics[3]
+        # print("dynamics yawdd: "+str(np.around(dynamics[-1], 6)))
         # print("dynamics: "+str(np.around(dynamics, 6)))
         # print("---------")
         # states_der = self.ptmodel(np.append(states[:4], inputs).cuda())
-        kinematics = (self.kinematicBicycleModel(states, inputs))[:3]
+        # kinematics = (self.kinematicBicycleModel(states, inputs))[:3]
+        kinematics = (self.kinematicBicycleModel(states, original_inputs))[:3]
         states_der = np.append(kinematics, dynamics)
 
         return states_der

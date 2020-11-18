@@ -32,7 +32,7 @@ class SimulateStep(object):
         self.width       = 1.921
         self.x0          = 0
         self.y0          = 0
-        self.yaw0        = 0
+        self.yaw0        = -1.
         self.roll0       = 0.0207
         self.vx0         = 1
         self.vy0         = 0.00086

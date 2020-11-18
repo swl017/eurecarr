@@ -1,0 +1,27 @@
+image: waypoint_image_box.png  # yaml이 있는 위치 기준 상대경로 입력가능함.
+# image: ../src/path_integral/params/maps/kaist_costmap/kaist_papalado_full_track.png  # yaml이 있는 위치 기준 상대경로 입력가능함.
+# image: ../src/path_integral/params/maps/kaist_costmap/papalado_fulltrack_image_trim_cost_guide.png  # yaml이 있는 위치 기준 상대경로 입력가능함.
+# image: ../src/path_integral/params/maps/kaist_costmap/waypoint_image_ppm200_s2.png  # yaml이 있는 위치 기준 상대경로 입력가능함.
+#image: ../src/path_integral/params/maps/kaist_costmap/waypoint_image_ppm200_6.png  # yaml이 있는 위치 기준 상대경로 입력가능함.
+# image: ../src/path_integral/params/maps/kaist_costmap/waypoint_image3.png  # yaml이 있는 위치 기준 상대경로 입력가능함.
+# image: ../src/path_integral/params/maps/kaist_costmap/display_image_optitrack6.png  # yaml이 있는 위치 기준 상대경로 입력가능함.
+# image: ../src/path_integral/params/maps/kaist_costmap/display_image_gazebo_track6f.png  # yaml이 있는 위치 기준 상대경로 입력가능함.
+# image: ../src/path_integral/params/maps/kaist_costmap/ki_bench_test2.png  # yaml이 있는 위치 기준 상대경로 입력가능함.
+# image: ../src/path_integral/params/maps/kaist_costmap/test2_flip.png  # yaml이 있는 위치 기준 상대경로 입력가능함.
+# resolution: 0.05   # 5m/314px 
+# resolution: 0.2   # 5m/314px 
+resolution: 1   # f1
+# resolution: 0.005   # 5m/314px 
+# origin: [ 0.0, 0.0, 0.0 ] # map의 중심점 (x, y, theta (rad) )
+#origin: [ -3.0, -3.0, 0.0 ] # map의 중심점 (x, y, theta (rad) )
+# origin: [ -5.95, -5.05, 0.0 ] # map의 중심점 (x, y, theta (rad) )
+# origin: [ -3.55, -4.85, 0.0 ] # map의 중심점 (x, y, theta (rad) )
+# origin: [ -444.0, -143.56, 0.0 ] # map의 중심점 (x, y, theta (rad) ) # KI bench (x_min, y_min)
+# origin: [ -17.6817, -85.800, 0.0 ] # map의 중심점 (x, y, theta (rad) ) # Papalado Fulltrack New (x_min, y_min)
+# origin: [ -742.0, -885.0, 0.0 ] # map의 중심점 (x, y, theta (rad) ) # F1 (x_min, y_min)
+origin: [ -692.0, -885.0, 0.0 ] # map의 중심점 (x, y, theta (rad) ) # F1 (x_min, y_min)
+negate: 0
+occupied_thresh: 0.65
+free_thresh: 0.19
+# -51.9
+# -35.65
