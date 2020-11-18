@@ -77,8 +77,8 @@ class Dynamics(object):
             self.ptmodel = model.NeuralNet(input_size, output_size)
             # self.ptmodel = self.importPtModel.NeuralNet(input_size, output_size)
             # self.ptmodel_path = "/home/usrg/catkin_ws/src/eurecarr_field/eurecarr_simulation/src/for_model_simulation/austria_only/checkpoint_9000-8.842071110848337e-05.pt"
-            self.ptmodel_path = "/home/sw/Desktop/checkpoint_9000-0.41358309984207153.pt"
-            # self.ptmodel_path = "/home/sw/catkin_ws/src/eurecarr_field/eurecarr_simulation/src/for_model_simulation/all_track_w_scaling/checkpoint_9000-0.1732824593782425.pt"
+            self.ptmodel_path = "/home/sw/Desktop/torch_to_npz/checkpoint_9000-0.07857070863246918.pt"
+            # self.ptmodel_path = "/home/sw/catkin_ws/src/eurecarr_field/eurecarr_simulation/src/for_model_simulation/all_track_w_scaling/checkpoint_9000-0.1732824 c593782425.pt"
             # self.ptmodel_path = "/home/sw/catkin_ws/src/eurecarr_field/eurecarr_simulation/src/for_model_simulation/all_track_wo_scaling/checkpoint_1000-0.0002718334726523608.pt"
             # self.ptmodel_path = "/home/sw/Downloads/veh_dynamics_learning/saved_model/checkpoint_gpu_wo_scaler.pt"
             loaded_state = torch.load(self.ptmodel_path,map_location='cuda:0')
