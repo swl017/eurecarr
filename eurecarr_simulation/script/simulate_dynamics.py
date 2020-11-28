@@ -4,6 +4,8 @@ from std_msgs.msg import Float64
 from geometry_msgs.msg import PoseStamped, Quaternion, TransformStamped, Accel
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import Joy
+from ackermann_msgs.msg import AckermannDriveStamped
+
 from tf.transformations import quaternion_from_euler
 import tf_conversions
 import tf2_ros
@@ -30,13 +32,13 @@ class SimulateStep(object):
         self.dt          = dt
         self.img_name    = ''
         self.img         = None
-        self.length      = 15
+        self.length      = 0.12#15
         self.width       = 8
-        self.x0          = 0#250
-        self.y0          = 0#150
-        self.yaw0        = 0
+        self.x0          = -0.83666525867633#250
+        self.y0          = 1.088822546201715#150
+        self.yaw0        = -0.7854
         self.roll0       = 0
-        self.vx0         = 0
+        self.vx0         = 0.2
         self.vy0         = 0
         self.yawd0       = 0
         self.states_init = [self.x0, self.y0, self.yaw0, self.roll0, self.vx0, self.vy0, self.yawd0]
@@ -68,14 +70,24 @@ class SimulateStep(object):
         self.BLACK      = (255,255,255)
         self.WHITE      = (0,0,0)
 
-        self.steer_sub   = rospy.Subscriber('stanleytopic', Float64, self.steerCallback)
-        self.steer_ = 0
+        # Autonomous Mode
+        self.auto_mode = True
+        self.control_sub   = rospy.Subscriber('control', AckermannDriveStamped, self.controlCallback)
+        self.steering = 0
+        self.throttle = 0
+        self.steer_angle_to_norm = 1#30/180*np.pi
+        self.throttle_to_norm = 0.5
 
-    def steerCallback(self, msg):
-        self.steer_ = msg.data
+    def controlCallback(self, msg):
+        self.steering = msg.drive.steering_angle * self.steer_angle_to_norm
+        self.throttle = msg.drive.acceleration * self.throttle_to_norm
+        if self.auto_mode == True:
+            self.inputs = np.array([self.steering, self.throttle])
+            print("inputs: %.3f"%self.inputs[1])
 
     def one_step_forward(self, inputs):
-        self.inputs     = inputs
+        if self.auto_mode == False:
+            self.inputs     = inputs
         self.states_der = self.get_states_der(self.states, self.inputs)
         if self.toggle:
             self.states_der = np.zeros_like(self.states)
@@ -274,7 +286,7 @@ class SimulateStep(object):
 def main():
     rospy.init_node('simulate_dynamics')
 
-    dt           = 0.05
+    dt           = 0.02
     Hz           = int(1/dt)
     stateDim     = 7
     inputDim     = 2
@@ -284,13 +296,14 @@ def main():
     # sim.imageLoad('/home/sw/catkin_ws/src/autorally/autorally_control/src/path_integral/params/maps/kaist_costmap/waypoint_image3.png')
     clock        = pygame.time.Clock()
     r            = rospy.Rate(Hz)
+    inputs = np.zeros(inputDim)
     while not rospy.is_shutdown():
-        joy.get_value()
-        # joystick
-        # inputs = np.array([joy.axis[3], -joy.axis[1]])
-        # steer
-        inputs = np.array([sim.steer_, -joy.axis[1]])
-        sim.toggle = joy.toggle
+        # joy.get_value()
+        # # # joystick
+        # # inputs = np.array([joy.axis[3], -joy.axis[1]])
+        # # steer
+        # inputs = np.array([sim.steer_, -joy.axis[1]])
+        # sim.toggle = joy.toggle
         sim.one_step_forward(inputs)
         # clock.tick(Hz)
         # sim.render2D()

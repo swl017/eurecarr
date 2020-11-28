@@ -8,7 +8,9 @@ from sensor_msgs.msg import Joy
 # import tf_conversions
 # import tf2_ros
 
-# code from: https://devnauts.tistory.com/61
+from ackermann_msgs.msg import AckermannDriveStamped
+
+# pygame code from: https://devnauts.tistory.com/61
 
 import numpy as np
 import pygame
@@ -30,8 +32,8 @@ class SimulateStep(object):
         self.img         = None
         self.length      = 4.833
         self.width       = 1.921
-        self.x0          = 0
-        self.y0          = 0
+        self.x0          = -0.836665258676334#0
+        self.y0          = 1.088822546201715#0
         self.yaw0        = -1.
         self.roll0       = 0.0207
         self.vx0         = 1
@@ -56,10 +58,12 @@ class SimulateStep(object):
         self.pose_pub   = rospy.Publisher('simulation/pose', PoseStamped, queue_size=1)
         self.bodyOdom_pub   = rospy.Publisher('simulation/bodyOdom', Odometry, queue_size=1)
         self.poseOdom_pub   = rospy.Publisher('pose_estimate', Odometry, queue_size=1)
-        self.input_pub  = rospy.Publisher('simulation/inputs', Joy, queue_size=1)
+        self.input_pub  = rospy.Publisher('simulation/inputs/joystick', Joy, queue_size=1)
         self.accel_pub  = rospy.Publisher('acceleration/all', Accel, queue_size=1)
         # self.br = tf2_ros.TransformBroadcaster()
 
+        self.inputs_sub  = np.zeros(self.inputDim)
+        self.control_sub = rospy.Subscriber('control_command', AckermannDriveStamped, self.controlSubCallback)
  
         # pygame.init() 
         # self.screen     = pygame.display.set_mode((480, 320), DOUBLEBUF)
@@ -70,6 +74,10 @@ class SimulateStep(object):
 
     def steerCallback(self, msg):
         self.steer_ = msg.data
+
+    def controlSubCallback(self, msg):
+        self.inputs_sub[0] = msg.drive.steering_angle
+        self.inputs_sub[1] = msg.drive.acceleration
 
     def one_step_forward(self, inputs):
         self.inputs     = inputs
@@ -293,7 +301,7 @@ class SimulateStep(object):
 def main():
     rospy.init_node('simulate_dynamics')
 
-    dt           = 0.01
+    dt           = 0.05
     Hz           = 1.0/dt
     stateDim     = 7
     inputDim     = 2
@@ -303,11 +311,18 @@ def main():
     # sim.imageLoad('/home/sw/catkin_ws/src/autorally/autorally_control/src/path_integral/params/maps/kaist_costmap/waypoint_image3.png')
     clock        = pygame.time.Clock()
     r            = rospy.Rate(Hz)
+    use_joystick = False
+    use_ros_input = True
     while not rospy.is_shutdown():
         joy.get_value()
         # joystick
-        steering = joy.axis[3]
-        throttle = -joy.axis[1]
+        if use_joystick:
+            steering = joy.axis[3]
+            throttle = -joy.axis[1]
+        # ros_input
+        elif use_ros_input:
+            steering = sim.inputs_sub[0]
+            throttle = sim.inputs_sub[1]
         inputs = np.array([steering, throttle])
         sim.toggle = joy.toggle
         sim.one_step_forward(inputs)

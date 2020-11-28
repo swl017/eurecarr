@@ -1,7 +1,7 @@
 import numpy as np
 import imp
-import torch
-import model
+# import torch
+# import model
 
 def sigmoid(x):
     return 1 / (1 +np.exp(-x))
@@ -9,23 +9,25 @@ def sigmoid(x):
 class Dynamics(object):
     def __init__(self, stateDim, inputDim, dt):
         self.dt         = dt
-        self.steerRatio    = -20.0 * np.pi / 180
+        self.steerRatio    = 1#-20.0 * np.pi / 180
         self.throttleRatio = 1
-        self.length     = 0.15
-        self.lf         = 0.15/2.0
-        self.lr         = self.length - self.lf
-        self.width      = 0.08
-        self.m       	= 0.041
-        self.Iz     	= 27.8E-6
         self.Cm1        = 0.287
         self.Cm2        = 0.0545
         self.Cr0        = 0.0518
         self.Cr2        = 0.00035
         self.Br     	= 3.385
+        self.Cr 	    = 1.2691
         self.Dr     	= 0.173
         self.Bf	        = 2.579
         self.Cf     	= 1.2
         self.Df     	= 0.192
+        self.m       	= 0.041
+        self.Iz     	= 27.8E-6
+        self.length     = 0.06 #mpcc # 0.15 #optitrack
+        self.width      = 0.03 #mpcc 0.08 #optitrack
+        self.lf         = 0.029 #mpcc # 0.15/2.0 #optitrack
+        self.lr         = self.length - self.lf
+
         self.A          = np.array([[0, 0, -0.1084,   0.995, -0.09983,      0],\
                                     [0, 0,  0.5921, 0.09983,    0.995,      0],\
                                     [0, 0,       0,       0,        0,      1],\
@@ -50,7 +52,7 @@ class Dynamics(object):
         ###### 4: NPZ neural net model
         ###### 5: pytorch neural net model
 
-        self.modelType = 5
+        self.modelType = 1
 
         if self.modelType == 4:
             ## NeuralNet Variables & Params
@@ -116,22 +118,22 @@ class Dynamics(object):
         elif self.modelType == 5:
             states_der = self.InferNN(states, inputs)
 
-            # # enforce constraints by changyoung -- test
-            # velocity_thres = 1 
-            # throttle_deadzone = 0.1
-            # if states[1] < velocity_thres and inputs[1] < throttle_deadzone:
-            #     states_der[0] = 0.0
-            #     states_der[1] = max(0.0, states_der[1])
-            #     # states_der[1] = 0.0
-            #     vy_vx_ratio = 0.1
-            #     states_der[2] = np.clip(states_der[2], -vy_vx_ratio * abs(states_der[1]), vy_vx_ratio * abs(states_der[1]))
-            #     # states_der[2] = 0.0
-            #     vroll_vx_ratio = 0.001
-            #     # states_der[3] = np.clip(states_der[3], -vroll_vx_ratio * abs(states_der[1]), vroll_vx_ratio * abs(states_der[1]))
-            #     states_der[3] = np.clip(states_der[3], -np.pi/6, np.pi/6)
-            #     # states_der[3] = 0.0
+            # enforce constraints by changyoung -- test
+            velocity_thres = 1 
+            throttle_deadzone = 0.1
+            if states[1] < velocity_thres and inputs[1] < throttle_deadzone:
+                states_der[0] = 0.0
+                states_der[1] = max(0.0, states_der[1])
+                # states_der[1] = 0.0
+                vy_vx_ratio = 0.1
+                states_der[2] = np.clip(states_der[2], -vy_vx_ratio * abs(states_der[1]), vy_vx_ratio * abs(states_der[1]))
+                # states_der[2] = 0.0
+                vroll_vx_ratio = 0.001
+                # states_der[3] = np.clip(states_der[3], -vroll_vx_ratio * abs(states_der[1]), vroll_vx_ratio * abs(states_der[1]))
+                states_der[3] = np.clip(states_der[3], -np.pi/6, np.pi/6)
+                # states_der[3] = 0.0
 
-            #     print("Constraints enforcing")
+                # print("Constraints enforcing")
 
         return states_der
 
@@ -228,7 +230,7 @@ class Dynamics(object):
 
     def pacejkaTireModel(self, alpha_f, alpha_r):
         F_fy = self.Df * np.sin(self.Cf * np.arctan(self.Bf*alpha_f))
-        F_ry = self.Dr * np.sin(self.Cr0 * np.arctan(self.Br*alpha_r))
+        F_ry = self.Dr * np.sin(self.Cr * np.arctan(self.Br*alpha_r))
 
         return F_fy, F_ry
 
