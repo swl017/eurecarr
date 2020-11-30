@@ -36,7 +36,7 @@ class SimulateStep(object):
         self.width       = 8
         self.x0          = -0.83666525867633#250
         self.y0          = 1.088822546201715#150
-        self.yaw0        = -0.7854
+        self.yaw0        = np.arctan2((1.05906-1.08882),(-0.80691+0.83667))#-0.7854
         self.roll0       = 0
         self.vx0         = 0.2
         self.vy0         = 0
