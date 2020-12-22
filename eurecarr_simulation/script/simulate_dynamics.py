@@ -30,6 +30,7 @@ class SimulateStep(object):
         # x y yaw roll vx vy yawr
 
         self.dt          = dt
+        self.fine_dt     = 0.001
         self.img_name    = ''
         self.img         = None
         self.length      = 0.12#15
@@ -38,7 +39,7 @@ class SimulateStep(object):
         self.y0          = 1.088822546201715#150
         self.yaw0        = np.arctan2((1.05906-1.08882),(-0.80691+0.83667))#-0.7854
         self.roll0       = 0
-        self.vx0         = 0.2
+        self.vx0         = 0.5
         self.vy0         = 0
         self.yawd0       = 0
         self.states_init = [self.x0, self.y0, self.yaw0, self.roll0, self.vx0, self.vy0, self.yawd0]
@@ -75,30 +76,47 @@ class SimulateStep(object):
         self.control_sub   = rospy.Subscriber('control', AckermannDriveStamped, self.controlCallback)
         self.steering = 0
         self.throttle = 0
-        self.steer_angle_to_norm = 1#30/180*np.pi
-        self.throttle_to_norm = 0.5
+        self.steer_angle_to_norm = 1.#30/180*np.pi
+        self.throttle_to_norm = 1.#0.2/10.
 
     def controlCallback(self, msg):
         self.steering = msg.drive.steering_angle * self.steer_angle_to_norm
+        # if msg.drive.acceleration < 1.0 and msg.drive.acceleration > -1.0:
         self.throttle = msg.drive.acceleration * self.throttle_to_norm
         if self.auto_mode == True:
-            self.inputs = np.array([self.steering, self.throttle])
-            print("inputs: %.3f"%self.inputs[1])
+            self.inputs_d = np.array([self.steering, self.throttle])
+            self.inputs += self.inputs_d * self.dt
+            print("inputs: s %.3f t %.3f"%(self.inputs[0], self.inputs[1]))
 
     def one_step_forward(self, inputs):
+        '''
+        Proceed one step
+        '''
         if self.auto_mode == False:
             self.inputs     = inputs
         self.states_der = self.get_states_der(self.states, self.inputs)
         if self.toggle:
             self.states_der = np.zeros_like(self.states)
             self.states     = self.states_init
-        self.states     = self.states + self.states_der * self.dt
+        # self.states = self.states + self.states_der * self.dt
+        print("states(before): v %.3f"%(self.states[4]))
+        for _ in range(int(self.dt/self.fine_dt)):
+            self.states = self.RK4(self.states, self.inputs, self.fine_dt)
+        print("states(after) : v %.3f"%(self.states[4]))
+        print("===")
+
+        '''
+        Make history(optional)
+        '''
         self.state_hist  = np.append(self.state_hist, [self.states], axis=0)
         self.state_der_hist  = np.append(self.state_der_hist, [self.states_der], axis=0)
         data_input = np.hstack([self.states[self.stateDim-self.dynamicsDim:], self.inputs])
         data_label = self.states_der[self.stateDim-self.dynamicsDim:]
         self.data = np.append(self.data,[np.hstack([data_input,data_label])],axis=0)
 
+        '''
+        Publish
+        '''
         stamp = rospy.Time.now()
 
         self.publishPose(stamp, self.states)
@@ -107,6 +125,13 @@ class SimulateStep(object):
         self.publishPoseOdom(stamp, self.states)
         self.publishAccel(stamp, self.states_der)
 
+    def RK4(self, states, inputs, fine_Ts):
+        k1 = self.get_states_der(states, inputs)
+        k2 = self.get_states_der(states+fine_Ts/2.*k1, inputs)
+        k3 = self.get_states_der(states+fine_Ts/2.*k2, inputs)
+        k4 = self.get_states_der(states+fine_Ts*k3, inputs)
+        states_next = states + fine_Ts*(k1/6.+k2/3.+k3/3.+k4/6.)
+        return states_next
 
     def get_states_der(self, states, inputs):
         return self.dynamics.forward(states, inputs)
@@ -286,12 +311,12 @@ class SimulateStep(object):
 def main():
     rospy.init_node('simulate_dynamics')
 
-    dt           = 0.02
+    dt           = 1
     Hz           = int(1/dt)
     stateDim     = 7
     inputDim     = 2
     joy          = joystick.Joystick()
-    sim          = SimulateStep(stateDim, inputDim, dt)
+    sim          = SimulateStep(stateDim, inputDim, dt/20.)
     sim.namespace = rospy.get_namespace()
     # sim.imageLoad('/home/sw/catkin_ws/src/autorally/autorally_control/src/path_integral/params/maps/kaist_costmap/waypoint_image3.png')
     clock        = pygame.time.Clock()
@@ -304,7 +329,7 @@ def main():
         # # steer
         # inputs = np.array([sim.steer_, -joy.axis[1]])
         # sim.toggle = joy.toggle
-        sim.one_step_forward(inputs)
+        sim.one_step_forward(sim.inputs)
         # clock.tick(Hz)
         # sim.render2D()
 

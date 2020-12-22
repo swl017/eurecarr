@@ -105,8 +105,8 @@ class Dynamics(object):
             ## Using mixed Dynamic-Kinematic Bicycle Model
             states_der_d = self.dynamicBicycleModel(states, inputs)
             states_der_k = self.kinematicBicycleModel(states, inputs)
-            blend_vx_min = 100
-            blend_vx_max = 1000
+            blend_vx_min = 0.5
+            blend_vx_max = 2.
             vx = states[4]
             blend = min(max((vx-blend_vx_min)/(blend_vx_max-blend_vx_min),0.0),1.0)
             states_der = blend*states_der_d + (1-blend)*states_der_k
