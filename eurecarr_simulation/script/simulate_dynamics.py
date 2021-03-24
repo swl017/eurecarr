@@ -10,12 +10,9 @@ from tf.transformations import quaternion_from_euler
 import tf_conversions
 import tf2_ros
 
-# code from: https://devnauts.tistory.com/61
-
 import numpy as np
-import pygame
-from pygame.locals import *
 import joystick
+
 import sys
 from time import gmtime, strftime
 
@@ -29,19 +26,28 @@ class SimulateStep(object):
         # 0 1 2   3    4  5  6
         # x y yaw roll vx vy yawr
 
+        '''
+        Initial conditions
+        '''
+        self.x0          = 0.
+        self.y0          = 0.
+        self.yaw0        = 0.
+        self.roll0       = 0.
+        self.vx0         = 3.
+        self.vy0         = 0.
+        self.yawd0       = 0.
+
+        '''
+        Parameters
+        '''
         self.dt          = dt
-        self.fine_dt     = 0.001
-        self.img_name    = ''
-        self.img         = None
-        self.length      = 0.12#15
-        self.width       = 8
-        self.x0          = -0.83666525867633#250
-        self.y0          = 1.088822546201715#150
-        self.yaw0        = np.arctan2((1.05906-1.08882),(-0.80691+0.83667))#-0.7854
-        self.roll0       = 0
-        self.vx0         = 0.5
-        self.vy0         = 0
-        self.yawd0       = 0
+        self.fine_dt     = dt/10.
+        self.length      = 0.12
+        self.width       = 8.
+
+        '''
+        Variable initialization
+        '''
         self.states_init = [self.x0, self.y0, self.yaw0, self.roll0, self.vx0, self.vy0, self.yawd0]
         self.stateDim    = stateDim
         self.inputDim    = inputDim
@@ -49,37 +55,46 @@ class SimulateStep(object):
         self.states      = self.states_init
         self.states_der  = np.zeros(self.stateDim)
         self.state_hist  = np.zeros([1, (self.stateDim)])
-        self.state_der_hist  = np.zeros([1, (self.stateDim)])
+        self.state_der_hist = np.zeros([1, (self.stateDim)])
         self.data        = np.zeros([1,2*self.dynamicsDim+self.inputDim])
         self.inputs      = np.zeros(self.inputDim)
         self.inputs_der  = np.zeros(self.inputDim)
-        self.dynamics    = dynamics.Dynamics(stateDim, inputDim, dt)
+        self.toggle_switch  = False
 
-        self.toggle     = False
- 
+        '''
+        Vehicle dynamics object
+        '''
+        self.dynamics    = dynamics.Dynamics(stateDim, inputDim, dt)
+        self.dynamics.modelType = 1
+
+        '''
+        ROS publishers
+        '''
         self.pose_pub   = rospy.Publisher('simulation/pose', PoseStamped, queue_size=1)
         self.bodyOdom_pub   = rospy.Publisher('simulation/bodyOdom', Odometry, queue_size=1)
-        self.poseOdom_pub   = rospy.Publisher('pose_estimate', Odometry, queue_size=1)
+        self.poseOdom_pub   = rospy.Publisher('simulation/mapOdom', Odometry, queue_size=1)
         self.input_pub  = rospy.Publisher('simulation/inputs', Joy, queue_size=1)
-        self.accel_pub  = rospy.Publisher('acceleration/all', Accel, queue_size=1)
+        self.accel_pub  = rospy.Publisher('simulation/acceleration', Accel, queue_size=1)
         self.br = tf2_ros.TransformBroadcaster()
 
- 
-        # pygame.init() 
-        # self.screen     = pygame.display.set_mode((480, 320), DOUBLEBUF)
-        self.RED        = (255,0,0)
-        self.BLACK      = (255,255,255)
-        self.WHITE      = (0,0,0)
-
-        # Autonomous Mode
-        self.auto_mode = True
+        '''
+        Variable definitions for autonomous driving
+        '''
+        self.auto_mode     = True
         self.control_sub   = rospy.Subscriber('control', AckermannDriveStamped, self.controlCallback)
-        self.steering = 0
-        self.throttle = 0
-        self.steer_angle_to_norm = 1.#30/180*np.pi
-        self.throttle_to_norm = 1.#0.2/10.
+        self.steering      = 0
+        self.throttle      = 0
+        self.steer_angle_to_norm = 1/0.25 #30/180*np.pi
+        self.throttle_to_norm = 1
 
     def controlCallback(self, msg):
+        '''
+        Unit conventions
+        - msg.drive.steering_angle : angle[rad]
+        - msg.drive.acceleration   : acceleration[m/s^2]
+        - self.inputs[0]           : normalized steer input(min:-1, max:1)
+        - self.inputs[1]           : normalized throttle input(min:-1, max:1)
+        '''
         self.steering = msg.drive.steering_angle * self.steer_angle_to_norm
         # if msg.drive.acceleration < 1.0 and msg.drive.acceleration > -1.0:
         self.throttle = msg.drive.acceleration * self.throttle_to_norm
@@ -88,6 +103,9 @@ class SimulateStep(object):
             self.inputs += self.inputs_d * self.dt
             print("inputs: s %.3f t %.3f"%(self.inputs[0], self.inputs[1]))
 
+    def simPoseSubCallback(self, msg):
+        self.publishTF(self, msg.header.stamp, msg)
+
     def one_step_forward(self, inputs):
         '''
         Proceed one step
@@ -95,18 +113,15 @@ class SimulateStep(object):
         if self.auto_mode == False:
             self.inputs     = inputs
         self.states_der = self.get_states_der(self.states, self.inputs)
-        if self.toggle:
+        if self.toggle_switch:
             self.states_der = np.zeros_like(self.states)
             self.states     = self.states_init
-        # self.states = self.states + self.states_der * self.dt
-        print("states(before): v %.3f"%(self.states[4]))
-        for _ in range(int(self.dt/self.fine_dt)):
+        # self.states = self.states + self.states_der * self.dt # Euler method
+        for _ in range(int(self.dt/self.fine_dt)): # Runge-Kutta method
             self.states = self.RK4(self.states, self.inputs, self.fine_dt)
-        print("states(after) : v %.3f"%(self.states[4]))
-        print("===")
 
         '''
-        Make history(optional)
+        Stack history(optional)
         '''
         self.state_hist  = np.append(self.state_hist, [self.states], axis=0)
         self.state_der_hist  = np.append(self.state_der_hist, [self.states_der], axis=0)
@@ -120,12 +135,13 @@ class SimulateStep(object):
         stamp = rospy.Time.now()
 
         self.publishPose(stamp, self.states)
-        self.publishJoy(stamp, self.inputs, self.toggle)
+        self.publishJoy(stamp, self.inputs, self.toggle_switch)
         self.publishBodyOdom(stamp, self.states)
         self.publishPoseOdom(stamp, self.states)
         self.publishAccel(stamp, self.states_der)
 
     def RK4(self, states, inputs, fine_Ts):
+        # Runge-Kutta 4th Order Integration Method
         k1 = self.get_states_der(states, inputs)
         k2 = self.get_states_der(states+fine_Ts/2.*k1, inputs)
         k3 = self.get_states_der(states+fine_Ts/2.*k2, inputs)
@@ -135,45 +151,6 @@ class SimulateStep(object):
 
     def get_states_der(self, states, inputs):
         return self.dynamics.forward(states, inputs)
-
-    def render2D(self):
-        x   = self.states[0]
-        y   = self.states[1]
-        yaw = self.states[2]
-
-        center = (0.0, 0.0)
-        front  = (self.length*1.3, 0)
-        lf     = (self.length/2, self.width/2)
-        rf     = (self.length/2, -self.width/2)
-        lr     = (-self.length/2, self.width/2)
-        rr     = (-self.length/2, -self.width/2)
-        ce_rot = self.rotate(center, yaw)
-        fr_rot = self.rotate(front, yaw)
-        lf_rot = self.rotate(lf, yaw)
-        rf_rot = self.rotate(rf, yaw)
-        lr_rot = self.rotate(lr, yaw)
-        rr_rot = self.rotate(rr, yaw)
-
-        pygame.draw.line(self.screen, self.RED, ce_rot, fr_rot)
-        pygame.draw.polygon(self.screen, self.RED, [lf_rot, rf_rot, lr_rot, rr_rot])
-
-        # for i in range(0, len(self.state_hist)):
-        #     pygame.draw.circle(self.screen, self.RED, [self.state_hist[i][0],self.state_hist[i][1]], float(self.width/3.0))
-        self.screen.blit(self.img, (50, 100))
-        degree = yaw * 180 / np.pi
-        rotated = pygame.transform.rotate(self.img, degree)
-        rect = rotated.get_rect()
-        rect.center = (x, y)
-        self.screen.blit(rotated, rect)
-
-
-
-    def imageLoad(self, img_name):
-        self.img_name = img_name
-        self.img      = pygame.image.load(self.img_name)
-        self.screen.fill(self.WHITE)
-        self.screen = pygame.display.set_mode((480, 320), DOUBLEBUF)
-        pygame.display.set_caption('Vehicle Dynamics Simulation')
 
     def rotate(self, pos, yaw):
         x_rot = np.cos(yaw)*pos[0] - np.sin(yaw)*pos[1]
@@ -189,7 +166,6 @@ class SimulateStep(object):
         t.transform.translation.x = poseMsg.pose.position.x
         t.transform.translation.y = poseMsg.pose.position.y
         t.transform.translation.z = 0.0
-        # q = tf_conversions.transformations.quaternion_from_euler(0, 0, poseMsg.theta)
         q = poseMsg.pose.orientation
         t.transform.rotation.x = q.x
         t.transform.rotation.y = q.y
@@ -204,8 +180,11 @@ class SimulateStep(object):
         poseMsg.pose.position.x  = states[0]
         poseMsg.pose.position.y  = states[1]
         poseMsg.pose.position.z  = 0.0
-        # 0 1 2   3    4  5  6
-        # x y yaw roll vx vy yawr
+        '''
+        State index and definition
+        0 1 2   3    4  5  6
+        x y yaw roll vx vy yawr
+        '''
         roll  = states[3]
         pitch = 0.0
         yaw   = states[2]
@@ -217,11 +196,11 @@ class SimulateStep(object):
         self.pose_pub.publish(poseMsg)
         self.publishTF(stamp, poseMsg)
 
-    def publishJoy(self, stamp, inputs, toggle):
+    def publishJoy(self, stamp, inputs, toggle_switch):
         joyMsg = Joy()
         joyMsg.header.stamp   = stamp
         joyMsg.axes           = inputs
-        joyMsg.buttons        = [toggle]
+        joyMsg.buttons        = [toggle_switch]
         self.input_pub.publish(joyMsg)
 
     def publishBodyOdom(self, stamp, states):
@@ -292,54 +271,49 @@ class SimulateStep(object):
         self.accel_pub.publish(accelMsg)
 
     def save_state_hist(self):
-        # data = np.zeros(len(self.state_hist))
-        # for i in range(0, len(self.state_hist)):
-        #     data[i] = np.append(self.state_hist[i],self.state_der_hist[i])
-
-        # data = np.append(self.state_hist, self.state_der_hist, axis=1)
-
         data = self.data
-        name = "/home/sw/rosbag/csv/optitrack/2020-08-16/bicycle/SimpleBicycle_data_"
+        name = "sim_data_"
         timelabel = strftime("%Y-%m-%d-%H-%M", gmtime())
         np.savetxt(name+timelabel+".csv", data, delimiter=",")
-
-
-
 
 
 
 def main():
     rospy.init_node('simulate_dynamics')
 
-    dt           = 1
-    Hz           = int(1/dt)
-    stateDim     = 7
-    inputDim     = 2
-    joy          = joystick.Joystick()
-    sim          = SimulateStep(stateDim, inputDim, dt/20.)
-    sim.namespace = rospy.get_namespace()
-    # sim.imageLoad('/home/sw/catkin_ws/src/autorally/autorally_control/src/path_integral/params/maps/kaist_costmap/waypoint_image3.png')
-    clock        = pygame.time.Clock()
-    r            = rospy.Rate(Hz)
+    dt              = 0.05 # simulation timestep [sec]
+    realtime_factor = 1.
+    Hz              = int(1/dt)
+    stateDim        = 7
+    inputDim        = 2
+    joy             = joystick.Joystick()
+    sim             = SimulateStep(stateDim, inputDim, dt)
+    sim.namespace   = rospy.get_namespace()
+    rate            = rospy.Rate(Hz*realtime_factor)
     inputs = np.zeros(inputDim)
+
+    joy_debug_flag = True
+    run_debug_flag = True
     while not rospy.is_shutdown():
-        # joy.get_value()
-        # # # joystick
-        # # inputs = np.array([joy.axis[3], -joy.axis[1]])
-        # # steer
-        # inputs = np.array([sim.steer_, -joy.axis[1]])
-        # sim.toggle = joy.toggle
+        joy.get_value()
+        if(len(joy.axis)>=4):
+            if run_debug_flag:
+                print("Joystick activated.")
+                run_debug_flag = False
+                joy_debug_flag = True
+            sim.inputs = np.array([joy.axis[3], -joy.axis[1]])
+            sim.toggle_switch = joy.toggle
+        else:
+            if joy_debug_flag:
+                print("Joystick not activated.")
+                run_debug_flag = True
+                joy_debug_flag = False
+            sim.inputs = np.array([0.,0.])
         sim.one_step_forward(sim.inputs)
-        # clock.tick(Hz)
-        # sim.render2D()
 
-        for event in pygame.event.get():
-            if event.type == QUIT:
-                pygame.quit()
-                sys.exit()
+        rate.sleep()
 
-        r.sleep()
-
+    # Uncomment to save data on exit
     # rospy.on_shutdown(sim.save_state_hist)
 
 if __name__ == "__main__":

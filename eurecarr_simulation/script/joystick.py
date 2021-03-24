@@ -77,7 +77,10 @@ class Joystick(object):
             axis1 = joystick.get_axis(1)
             axis2 = joystick.get_axis(2)
             axis3 = joystick.get_axis(3)
-            self.axis = [axis0, axis1, axis2, axis3]
+            axis4  = joystick.get_axis(4)
+            axis5  = joystick.get_axis(5)
+
+            self.axis = [axis0, axis1, axis2, axis3, axis4,axis5]
 
             if self.printText:
                 self.textPrint.tprint(self.screen, "Joystick {}".format(i))
@@ -86,6 +89,8 @@ class Joystick(object):
                 self.textPrint.tprint(self.screen, "Axis {} value: {:>6.3f}".format(1, axis1))
                 self.textPrint.tprint(self.screen, "Axis {} value: {:>6.3f}".format(2, axis2))
                 self.textPrint.tprint(self.screen, "Axis {} value: {:>6.3f}".format(3, axis3))
+                self.textPrint.tprint(self.screen, "Axis {} value: {:>6.3f}".format(4, axis4))
+                self.textPrint.tprint(self.screen, "Axis {} value: {:>6.3f}".format(5, axis5))
 
 
         # ALL CODE TO DRAW SHOULD GO ABOVE THIS COMMENT
