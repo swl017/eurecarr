@@ -5,6 +5,7 @@ from geometry_msgs.msg import PoseStamped, Quaternion, TransformStamped, Accel
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import Joy
 from ackermann_msgs.msg import AckermannDriveStamped
+from visualization_msgs.msg import Marker
 
 from tf.transformations import quaternion_from_euler
 import tf_conversions
@@ -35,23 +36,23 @@ class SimulateStep(object):
         self.roll0       = 0.
         self.vx0         = 3.
         self.vy0         = 0.
-        self.yawd0       = 0.
+        self.yawd0       = 2.
 
         '''
         Parameters
         '''
         self.dt          = dt
         self.fine_dt     = dt/10.
-        self.length      = 0.12
-        self.width       = 8.
+        self.max_steer_anlge = 30 * np.pi / 180 # rad
+        self.length      = 0.3
 
         '''
         Variable initialization
         '''
-        self.states_init = [self.x0, self.y0, self.yaw0, self.roll0, self.vx0, self.vy0, self.yawd0]
         self.stateDim    = stateDim
         self.inputDim    = inputDim
         self.dynamicsDim = 4
+        self.states_init = [self.x0, self.y0, self.yaw0, self.roll0, self.vx0, self.vy0, self.yawd0]
         self.states      = self.states_init
         self.states_der  = np.zeros(self.stateDim)
         self.state_hist  = np.zeros([1, (self.stateDim)])
@@ -65,29 +66,31 @@ class SimulateStep(object):
         Vehicle dynamics object
         '''
         self.dynamics    = dynamics.Dynamics(stateDim, inputDim, dt)
-        self.dynamics.modelType = 1
+        # self.dynamics.modelType = 1
+        self.dynamics.steerRatio = self.max_steer_anlge
 
         '''
         ROS publishers
         '''
         self.pose_pub   = rospy.Publisher('simulation/pose', PoseStamped, queue_size=1)
         self.bodyOdom_pub   = rospy.Publisher('simulation/bodyOdom', Odometry, queue_size=1)
-        self.poseOdom_pub   = rospy.Publisher('simulation/mapOdom', Odometry, queue_size=1)
+        self.poseOdom_pub   = rospy.Publisher('simulation/poseOdom', Odometry, queue_size=1)
         self.input_pub  = rospy.Publisher('simulation/inputs', Joy, queue_size=1)
         self.accel_pub  = rospy.Publisher('simulation/acceleration', Accel, queue_size=1)
         self.br = tf2_ros.TransformBroadcaster()
+        self.ego_model_marker_pub = rospy.Publisher('simulation/car_model', Marker, queue_size=1)
 
         '''
         Variable definitions for autonomous driving
         '''
-        self.auto_mode     = True
-        self.control_sub   = rospy.Subscriber('control', AckermannDriveStamped, self.controlCallback)
+        self.auto_mode     = False
+        self.control_sub   = rospy.Subscriber('control', AckermannDriveStamped, self.controlSubCallback)
         self.steering      = 0
         self.throttle      = 0
-        self.steer_angle_to_norm = 1/0.25 #30/180*np.pi
+        self.steer_angle_to_norm = 1/self.max_steer_anlge #1/0.25 #30/180*np.pi
         self.throttle_to_norm = 1
 
-    def controlCallback(self, msg):
+    def controlSubCallback(self, msg):
         '''
         Unit conventions
         - msg.drive.steering_angle : angle[rad]
@@ -119,7 +122,6 @@ class SimulateStep(object):
         # self.states = self.states + self.states_der * self.dt # Euler method
         for _ in range(int(self.dt/self.fine_dt)): # Runge-Kutta method
             self.states = self.RK4(self.states, self.inputs, self.fine_dt)
-
         '''
         Stack history(optional)
         '''
@@ -259,6 +261,7 @@ class SimulateStep(object):
         odomMsg.twist.twist.angular.y = pitch_dot
         odomMsg.twist.twist.angular.z = self.states_der[2]#yaw_dot
         self.poseOdom_pub.publish(odomMsg)
+        self.publishRvizVisualization(odomMsg)
 
     def publishAccel(self, stamp, states_der):
         accelMsg = Accel()
@@ -269,6 +272,30 @@ class SimulateStep(object):
         accelMsg.angular.y = 0.0
         accelMsg.angular.z = states_der[6]
         self.accel_pub.publish(accelMsg)
+
+    def publishRvizVisualization(self,odomMsg):
+        ego_model_marker = Marker()
+        ego_model_marker.header  = odomMsg.header
+        ego_model_marker.header.frame_id  = self.namespace[1:] + "base_link"
+        ego_model_marker.type    = Marker.MESH_RESOURCE
+        ego_model_marker.action  = Marker.ADD
+        ego_model_marker.pose.orientation.w = 1.
+
+        scale = self.length/2.5
+        ego_model_marker.pose.position.x = self.length * 0.5
+        ego_model_marker.scale.x = scale
+        ego_model_marker.scale.y = scale
+        ego_model_marker.scale.z = scale
+
+
+        ego_model_marker.color.a = 0.85
+        ego_model_marker.color.r = 0.7
+        ego_model_marker.color.g = 0.7
+        ego_model_marker.color.b = 0.7
+
+        ego_model_marker.mesh_resource = "package://eurecarr_simulation/models/car.dae"
+
+        self.ego_model_marker_pub.publish(ego_model_marker)
 
     def save_state_hist(self):
         data = self.data
@@ -301,7 +328,7 @@ def main():
                 print("Joystick activated.")
                 run_debug_flag = False
                 joy_debug_flag = True
-            sim.inputs = np.array([joy.axis[3], -joy.axis[1]])
+            sim.inputs = np.array([-joy.axis[3], -joy.axis[1]])
             sim.toggle_switch = joy.toggle
         else:
             if joy_debug_flag:

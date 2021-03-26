@@ -3,25 +3,54 @@ import numpy as np
 class Dynamics(object):
     def __init__(self, stateDim, inputDim, dt):
         self.dt         = dt
-        self.steerRatio    = -20.0 * np.pi / 180
+        self.steerRatio    = 0#-20.0 * np.pi / 180
         self.throttleRatio = 1
-        self.Cm1        = 2853.6789 #0.287
-        self.Cm1_brake  = 356.1283 
-        self.Cm2        = 0.0#0.0545
-        self.Cr0        = 71.272#0.0518
-        self.Cr2        = 0.4440625#0.00035
-        self.Br     	= 7.3689#3.385
-        self.Cr 	    = 1.9589#1.2691
-        self.Dr     	= 4702.8301#0.173
-        self.Bf	        = 7.0215#2.579
-        self.Cf     	= 1.9148#1.2
-        self.Df     	= 3621.6843#0.192
-        self.m       	= 481.6#0.041
-        self.Iz     	= 550#27.8E-6
-        self.length     = 2.971 # 0.15 
-        self.width      = 2.03 # 0.08 
-        self.lf         = 1.738476549225652 # 0.15/2.0
-        self.lr         = self.length - self.lf
+        '''
+        ###### Select Model Type #######
+        0: Straight Linear Model
+        1: Simple Bicycle Model
+        2: Mixed Dynamic-Kinematic Bicycle Model
+        3: Linearized Dynamic Bicycle Model(Currently not supported)
+        '''
+        self.modelType = 1
+
+        if self.modelType == 1:
+            self.Cm1        = 8.287
+            self.Cm1_brake  = 5.187
+            self.Cm2        = 1.1455
+            self.Cr0        = 2.18
+            self.Cr2        = 0.00035
+            self.Br     	= 3.385
+            self.Cr 	    = 1.2691
+            self.Dr     	= 0.173
+            self.Bf	        = 2.579
+            self.Cf     	= 1.2
+            self.Df     	= 0.192
+            self.m       	= 0.041
+            self.Iz     	= 27.8E-6
+            self.length     = 0.3 
+            self.width      = 0.08 
+            self.lf         = 0.15/2.0
+            self.lr         = self.length - self.lf
+
+        elif self.modelType == 2 or self.modelType == 3:
+            self.Cm1        = 2853.6789 #0.287
+            self.Cm1_brake  = 356.1283 
+            self.Cm2        = 0.0#0.0545
+            self.Cr0        = 71.272#0.0518
+            self.Cr2        = 0.4440625#0.00035
+            self.Br     	= 7.3689#3.385
+            self.Cr 	    = 1.9589#1.2691
+            self.Dr     	= 4702.8301#0.173
+            self.Bf	        = 7.0215#2.579
+            self.Cf     	= 1.9148#1.2
+            self.Df     	= 3621.6843#0.192
+            self.m       	= 481.6#0.041
+            self.Iz     	= 550#27.8E-6
+            self.length     = 2.971 # 0.15 
+            self.width      = 2.03 # 0.08 
+            self.lf         = 1.738476549225652 # 0.15/2.0
+            self.lr         = self.length - self.lf
 
         # self.A          = np.array([[0, 0, -0.1084,   0.995, -0.09983,      0],\
         #                             [0, 0,  0.5921, 0.09983,    0.995,      0],\
@@ -37,15 +66,6 @@ class Dynamics(object):
         #                             [  3935,     0]])
         self.last_states = np.zeros([stateDim, 1])
         self.last_inputs = np.zeros([inputDim, 1])
-
-        '''
-        ###### Select Model Type #######
-        0: Straight Linear Model
-        1: Simple Bicycle Model
-        2: Mixed Dynamic-Kinematic Bicycle Model
-        3: Linearized Dynamic Bicycle Model(Currently not supported)
-        '''
-        self.modelType = 1
 
 
     def forward(self, states, inputs):
